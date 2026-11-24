@@ -266,12 +266,18 @@ def test_a_non_integer_undo_id_is_422() -> None:
 
 
 def test_unticking_a_title_keeps_it_escaped() -> None:
-    """Case 9: a title with HTML characters stays escaped after Undo."""
+    """Case 9: Undo reopens the item and its open row still shows the escaped title."""
     todo = main.add("<b>bold</b>")
     todo.done = True
 
-    client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+    response = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
 
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not todo.done, "Undo should reopen the to-do, not leave it done"
     page = client.get("/").text
-    assert "&lt;b&gt;bold&lt;/b&gt;" in page
+    row = rendered_item(page, todo.title)
+    assert html.escape(todo.title) in row
     assert "<b>bold</b>" not in page
+    assert "<s>" not in row, "the reopened row should not be struck through"
+    assert '<button type="submit">Done</button>' in row
