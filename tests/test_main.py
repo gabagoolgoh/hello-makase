@@ -496,6 +496,19 @@ def visible_title_between_forms(row: str, box_form: str, delete_form: str) -> st
     return html.unescape(re.sub(r"<[^>]+>", "", without_comments)).strip()
 
 
+def title_markup_between_forms(row: str, box_form: str, delete_form: str) -> str:
+    """The escaped title source between a row's box form and its Delete form.
+
+    Tags and comments are dropped but entities are left as written, so an ampersand or quote
+    left raw in the visible title shows up instead of being silently decoded away. The box's
+    ``aria-label`` sits inside the box form, so it cannot satisfy this check.
+    """
+    start = row.index(box_form) + len(box_form)
+    between = row[start : row.index(delete_form, start)]
+    without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
+    return re.sub(r"<[^>]+>", "", without_comments).strip()
+
+
 def remaining_count(page: str) -> str:
     """The text of the page's remaining-count paragraph."""
     match = re.search(r'<p class="remaining">([^<]*)</p>', page)
@@ -988,9 +1001,9 @@ def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
         )
         assert html.escape(todo.title) in box_buttons[0]
         assert todo.title not in page, "the raw title must not break the attribute or the text"
-        assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
-            "the row should display the title as text, not only in the box label"
-        )
+        assert title_markup_between_forms(row, row_forms[0], row_forms[1]) == html.escape(
+            todo.title
+        ), "the row should display the escaped title as text, not only in the box label"
 
 
 def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
