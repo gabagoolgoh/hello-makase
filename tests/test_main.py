@@ -58,3 +58,24 @@ def test_a_title_is_escaped() -> None:
     page = client.get("/").text
     assert "&lt;b&gt;bold&lt;/b&gt;" in page
     assert "<b>bold</b>" not in page
+
+
+def test_marking_a_todo_done_strikes_it_through() -> None:
+    todo = main.add("Wash the car")
+
+    response = client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert todo.done
+    assert main.item(todo) in client.get("/").text
+
+
+def test_an_unknown_todo_is_404() -> None:
+    before = [one.done for one in main.todos]
+    unknown = max(one.id for one in main.todos) + 1
+
+    response = client.post(f"/todos/{unknown}/done", follow_redirects=False)
+
+    assert response.status_code == 404
+    assert [one.done for one in main.todos] == before

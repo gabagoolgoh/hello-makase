@@ -6,7 +6,7 @@ import html
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 app = FastAPI(title="makase-todo")
@@ -14,7 +14,7 @@ app = FastAPI(title="makase-todo")
 
 @dataclass
 class Todo:
-    """One to-do. ``done`` is in the model from the start; no control on the page sets it yet."""
+    """One to-do. The *Done* button beside it sets ``done``."""
 
     id: int
     title: str
@@ -50,11 +50,16 @@ def add(title: str) -> Todo:
 
 
 def item(todo: Todo) -> str:
-    """One to-do's list item: its escaped title, struck through once it is done."""
+    """One to-do's list item: its escaped title, struck through once it is done, and a *Done*
+    button beside it until then."""
     title = html.escape(todo.title)
     if todo.done:
         return f'      <li class="todo done"><s>{title}</s></li>'
-    return f'      <li class="todo">{title}</li>'
+    done = (
+        f'<form class="done" method="post" action="/todos/{todo.id}/done">'
+        '<button type="submit">Done</button></form>'
+    )
+    return f'      <li class="todo">{title} {done}</li>'
 
 
 def render() -> str:
@@ -73,6 +78,7 @@ def render() -> str:
     li {{ margin: 0.3rem 0; }}
     form.add {{ display: flex; gap: 0.5rem; margin-top: 1rem; }}
     form.add input {{ flex: 1; }}
+    form.done {{ display: inline; margin-left: 0.5rem; }}
   </style>
 </head>
 <body>
@@ -106,6 +112,16 @@ def create(title: Annotated[str, Form()] = "") -> RedirectResponse:
     cleaned = title.strip()
     if cleaned:
         add(cleaned)
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/todos/{todo_id}/done")
+def mark_done(todo_id: int) -> RedirectResponse:
+    """Mark one to-do done, then send the browser back to the page. An unknown id is 404."""
+    todo = next((one for one in todos if one.id == todo_id), None)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="There is no such to-do.")
+    todo.done = True
     return RedirectResponse("/", status_code=303)
 
 

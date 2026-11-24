@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 001: Mark a to-do done</title>
+  <meta name="makase-status" content="Complete">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="001">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 001: Mark a to-do done</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Mark a to-do done</a></dd>
+  </dl>
+
+<h2>What shipped</h2>
+<p>Each to-do that is not done yet now has a <em>Done</em> button beside it, which posts to <code>POST /todos/{todo_id}/done</code>, marks it done and reloads the page with it struck through; an unknown id answers 404.</p>
+
+<table class="groups">
+  <tr><td>A</td><td>Add a Done button that marks a to-do done</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☑ <strong>A1. <code>app/main.py</code>: add the route <code>POST /todos/{todo_id}/done</code>, which sets the to-do's <code>done</code> flag and answers <code>303</code> to <code>/</code>, or <code>404</code> for an id that does not exist, and a <em>Done</em> form beside every to-do that is not done yet.</strong><br>✓ <code>uv run pytest</code> passes, including <code>test_marking_a_todo_done_strikes_it_through</code> and <code>test_an_unknown_todo_is_404</code>. A done to-do renders exactly as before, with no form.</li>
+  <li data-group="A">☑ <strong>A2. <code>tests/test_main.py</code>: a test that posts to the route and checks the page shows that to-do struck through, and a test that an unknown id answers <code>404</code>.</strong><br>✓ <code>test_marking_a_todo_done_strikes_it_through</code> checks the <code>303</code> to <code>/</code>, the flag, and that the page holds the to-do's done rendering; <code>test_an_unknown_todo_is_404</code> checks the <code>404</code> and that no to-do changed. The whole suite passes.</li>
+</ol>
+
+</main>
+</body>
+</html>
