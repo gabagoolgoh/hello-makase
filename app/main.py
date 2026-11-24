@@ -78,12 +78,13 @@ def render() -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>To-dos</title>
   <style>
-    body {{ font-family: system-ui, sans-serif; max-width: 32rem; margin: 2rem auto; }}
-    body {{ padding: 0 1rem; }}
-    ul {{ padding-left: 1.2rem; }}
-    li {{ margin: 0.3rem 0; }}
-    form.add {{ display: flex; gap: 0.5rem; margin-top: 1rem; }}
-    form.add input {{ flex: 1; }}
+    body {{ font-family: system-ui, sans-serif; max-width: 32rem; margin: 0.6rem auto; padding: 0 1rem; background: #ffffff; color: #000000; font-size: 14px; }}
+    h1 {{ font-size: 1.35rem; margin: 0 0 0.25rem; }}
+    p.remaining {{ margin: 0 0 0.45rem; }}
+    ul {{ padding-left: 1.2rem; margin: 0.25rem 0; }}
+    li {{ margin: 0.25rem 0; }}
+    form.add {{ display: flex; gap: 0.5rem; margin-top: 0.55rem; }}
+    form.add input {{ flex: 1; min-width: 0; }}
     form.done, form.undo {{ display: inline; margin-left: 0.5rem; }}
   </style>
 </head>
