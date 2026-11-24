@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 from dataclasses import dataclass
+from itertools import count
 from typing import Annotated
 
 from fastapi import FastAPI, Form, HTTPException
@@ -34,24 +35,23 @@ list with one already done."""
 todos: list[Todo] = []
 """Every to-do, in the order added. Nothing survives a restart."""
 
-next_id = 1
-"""The id the next to-do will get. It only goes up, so a deleted id is never reused."""
+next_id = count(1)
+"""The ids still to hand out. Each Add takes one before doing anything else, so two Adds
+that overlap never read the same number, and a deleted id is never reused."""
 
 
 def reset() -> None:
     """Put the list back to the starters. Runs at import, and before each test."""
     global next_id
     todos.clear()
-    next_id = 1
+    next_id = count(1)
     for title, done in STARTERS:
         add(title).done = done
 
 
 def add(title: str) -> Todo:
-    """Append a to-do with the next id from the counter."""
-    global next_id
-    todo = Todo(id=next_id, title=title)
-    next_id += 1
+    """Append a to-do with the next id reserved from the counter."""
+    todo = Todo(id=next(next_id), title=title)
     todos.append(todo)
     return todo
 

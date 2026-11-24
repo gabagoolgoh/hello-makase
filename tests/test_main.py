@@ -282,6 +282,43 @@ def test_a_missing_delete_does_not_discard_an_overlapping_add(
     assert new_todo.title in client.get("/").text
 
 
+def test_overlapping_adds_get_distinct_ids_and_delete_one_keeps_the_other(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Case 7: overlapping Adds reserve distinct ids, so deleting one keeps the other."""
+    real_todo = main.Todo
+    overlapping: list[main.Todo] = []
+
+    class TodoThatAddsAnother(real_todo):  # type: ignore[misc]
+        trigger = True
+
+        def __init__(self, id: int, title: str, done: bool = False) -> None:
+            if type(self).trigger:
+                type(self).trigger = False
+                overlapping.append(main.add("Added during Add"))
+            super().__init__(id=id, title=title, done=done)
+
+    monkeypatch.setattr(main, "Todo", TodoThatAddsAnother)
+
+    first = main.add("First")
+
+    assert overlapping, "the overlapping Add should have happened"
+    second = overlapping[0]
+    assert first.id != second.id, "overlapping Adds must not share a counter value"
+    assert first in main.todos
+    assert second in main.todos
+    page = client.get("/").text
+    assert first.title in page
+    assert second.title in page
+
+    response = client.post(f"/todos/{first.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert first not in main.todos
+    assert second in main.todos
+    assert second.title in client.get("/").text
+
+
 def test_a_missing_or_repeated_delete_answers_303_and_changes_nothing() -> None:
     """Case 5: an absent id, and deleting one to-do twice, both redirect and change nothing."""
     before = [(one.id, one.title, one.done) for one in main.todos]
