@@ -503,12 +503,26 @@ def remaining_count(page: str) -> str:
     return match.group(1)
 
 
-def forms_in(fragment: str) -> list[str]:
-    """Each whole ``<form ...>...</form>`` in a page fragment, with its opening tag.
+def without_inert_markup(fragment: str) -> str:
+    """The fragment as a browser renders it, without comments or template contents."""
+    without_comments = re.sub(r"<!--.*?-->", "", fragment, flags=re.DOTALL)
+    return re.sub(
+        r"<template\b[^>]*>.*?</template>",
+        "",
+        without_comments,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
 
-    A button outside a form is therefore not found, and neither is a form's method lost.
+
+def forms_in(fragment: str) -> list[str]:
+    """Each whole live ``<form ...>...</form>`` in a page fragment, with its opening tag.
+
+    A button outside a form is therefore not found, and neither is a form's method lost. A
+    form inside a comment or an inert template is not live, so it is not found either.
     """
-    return re.findall(r"<form\b[^>]*>.*?</form>", fragment, re.DOTALL)
+    return re.findall(
+        r"<form\b[^>]*>.*?</form>", without_inert_markup(fragment), re.DOTALL
+    )
 
 
 def form_attributes(form: str) -> dict[str, str]:
@@ -532,8 +546,10 @@ def posts_to(form: str, path: str) -> bool:
 
 
 def buttons_in(fragment: str) -> list[str]:
-    """Each whole ``<button ...>...</button>`` in a page fragment."""
-    return re.findall(r"<button\b[^>]*>.*?</button>", fragment, re.DOTALL)
+    """Each whole live ``<button ...>...</button>`` in a page fragment."""
+    return re.findall(
+        r"<button\b[^>]*>.*?</button>", without_inert_markup(fragment), re.DOTALL
+    )
 
 
 def button_attributes(button: str) -> dict[str, str]:
@@ -706,7 +722,7 @@ def test_case_2_a_done_row_starts_with_a_ticked_box_posting_undo() -> None:
 
 
 def test_case_3_every_row_is_box_then_title_then_delete() -> None:
-    """Case 3: each row has exactly two real POST forms, its box and its Delete."""
+    """Case 3: each row starts with its live box form, then its title, then its live Delete."""
     page = client.get("/").text
     rows = rendered_list_items(page)
     assert len(rows) == len(main.todos)
@@ -714,12 +730,25 @@ def test_case_3_every_row_is_box_then_title_then_delete() -> None:
     for todo in main.todos:
         matching_rows = [row for row in rows if html.escape(todo.title) in row]
         assert len(matching_rows) == 1
-        row = matching_rows[0]
+        row = without_inert_markup(matching_rows[0])
         row_forms = forms_in(row)
-        assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions"
+        assert len(row_forms) == 2, f"{todo.title} should offer exactly two live actions"
         first_action = "undo" if todo.done else "done"
         assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}")
         assert posts_to(row_forms[1], f"/todos/{todo.id}/delete")
+        assert len(buttons_in(row_forms[0])) == 1, (
+            f"{todo.title}'s box form should hold one live box button"
+        )
+
+        opening = re.match(r"<li\b[^>]*>", row)
+        assert opening is not None, "each row should be a list item"
+        body = row[opening.end() : row.rindex("</li>")].strip()
+        assert body.startswith(row_forms[0]), (
+            "the row should start with its box form, with no visible text before it"
+        )
+        assert body.endswith(row_forms[1]), (
+            "the row should end with its Delete form, with no visible text after it"
+        )
         assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
             "the title should be the visible text between the box and Delete"
         )
