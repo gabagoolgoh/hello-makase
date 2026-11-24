@@ -439,9 +439,17 @@ def test_deleting_an_html_title_removes_its_escaped_row() -> None:
     response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
 
     assert response.status_code == 303
-    after = client.get("/").text
+    assert todo not in main.todos
+    assert todo.id not in [one.id for one in main.todos]
+    page_response = client.get("/")
+    assert page_response.status_code == 200
+    after = page_response.text
     assert html.escape(todo.title) not in after
     assert todo.title not in after
+    assert f"/todos/{todo.id}/" not in after, "the deleted to-do should offer no actions"
+    assert len(rendered_list_items(after)) == len(main.todos), (
+        "the deleted to-do should leave no placeholder row behind"
+    )
 
 
 def rendered_item(page: str, title: str) -> str:
