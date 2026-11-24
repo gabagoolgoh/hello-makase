@@ -642,7 +642,6 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert not todo.done, "Undo should reopen the to-do, not leave it done"
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert html.escape(todo.title) in row
     assert "<b>bold</b>" not in page
     assert "<s>" not in row, "the reopened row should not be struck through"
     row_forms = forms_in(row)
@@ -655,7 +654,10 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert button_text(box_buttons[0]) == "☐"
     assert box_attributes.get("role") == "checkbox"
     assert box_attributes.get("aria-checked") == "false"
-    assert box_attributes.get("aria-label") == html.escape(todo.title)
+    assert html.unescape(box_attributes.get("aria-label", "")) == todo.title
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
+        "the reopened row should show its title as text, not only in the box label"
+    )
 
 
 def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
@@ -837,20 +839,34 @@ def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -
 
 
 def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
-    """Case 8: a title with <, & or " is escaped in the box label and the visible title."""
+    """Case 8: a title with <, & or " is escaped in the box label and the visible title.
+
+    Both states are checked: the label attribute must survive intact and decode back to the
+    title, and the row must show that title as text of its own, apart from the label.
+    """
     todo = main.add('<b>bold & "quoted"</b>')
 
-    page = client.get("/").text
-    row = rendered_item(page, todo.title)
-    row_forms = forms_in(row)
-    assert len(row_forms) == 2
-    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
-    box_buttons = buttons_in(row_forms[0])
-    assert len(box_buttons) == 1
-    attributes = button_attributes(box_buttons[0])
-    assert attributes.get("aria-label") == html.escape(todo.title)
-    assert html.escape(todo.title) in row
-    assert todo.title not in page, "the raw title must not break the attribute or the text"
+    for done in (False, True):
+        todo.done = done
+        page = client.get("/").text
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2
+        action = "undo" if done else "done"
+        assert posts_to(row_forms[0], f"/todos/{todo.id}/{action}")
+        box_buttons = buttons_in(row_forms[0])
+        assert len(box_buttons) == 1
+        attributes = button_attributes(box_buttons[0])
+        label = attributes.get("aria-label")
+        assert label is not None, "the box should carry the title as its label"
+        assert html.unescape(label) == todo.title, (
+            "the label attribute should hold the escaped title intact"
+        )
+        assert html.escape(todo.title) in box_buttons[0]
+        assert todo.title not in page, "the raw title must not break the attribute or the text"
+        assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
+            "the row should display the title as text, not only in the box label"
+        )
 
 
 def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
