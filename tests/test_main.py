@@ -219,11 +219,20 @@ def test_deleting_one_todo_leaves_every_other_unchanged() -> None:
     """Case 3: deleting one to-do preserves every other id, title, done flag and order."""
     target = main.todos[1]
     others = [(one.id, one.title, one.done) for one in main.todos if one is not target]
+    before_titles = rendered_titles(client.get("/").text, main.todos)
+    assert before_titles == [one.title for one in main.todos], (
+        "the page should draw the to-dos in the order they were added"
+    )
 
     response = client.post(f"/todos/{target.id}/delete", follow_redirects=False)
 
     assert response.status_code == 303
     assert [(one.id, one.title, one.done) for one in main.todos] == others
+    after_titles = rendered_titles(client.get("/").text, main.todos)
+    assert after_titles == [title for _, title, _ in others], (
+        "the returned page should keep the same row order, with only the target gone"
+    )
+    assert after_titles == [title for title in before_titles if title != target.title]
 
 
 def test_overlapping_deletes_leave_both_deleted_todos_gone(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -438,6 +447,17 @@ def test_deleting_an_html_title_removes_its_escaped_row() -> None:
 def rendered_item(page: str, title: str) -> str:
     """The one line of the page rendering the list item for ``title``."""
     return next(line for line in page.splitlines() if html.escape(title) in line)
+
+
+def rendered_titles(page: str, todos: list[main.Todo]) -> list[str]:
+    """The titles of the rendered to-do rows, in the order the page draws them."""
+    rows = re.findall(r'<li class="todo[^"]*">.*?</li>', page, re.DOTALL)
+    titles = []
+    for row in rows:
+        matches = [one.title for one in todos if html.escape(one.title) in row]
+        assert len(matches) == 1, f"each row should render one known title: {row}"
+        titles.append(matches[0])
+    return titles
 
 
 def remaining_count(page: str) -> str:
