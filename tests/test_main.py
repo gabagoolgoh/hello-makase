@@ -567,6 +567,43 @@ def button_text(button: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", button)).strip()
 
 
+def style_rules(page: str) -> list[tuple[str, str]]:
+    """Each selector and declaration pair from the page's own <style> block."""
+    style = re.search(r"<style>(.*?)</style>", page, re.DOTALL)
+    assert style is not None, "the page should carry its own styles"
+    css = re.sub(r"/\*.*?\*/", "", style.group(1), flags=re.DOTALL)
+    rules: list[tuple[str, str]] = []
+    for selector_text, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        for selector in selector_text.split(","):
+            for declaration in body.split(";"):
+                name, separator, value = declaration.partition(":")
+                if separator:
+                    rules.append((selector.strip(), f"{name.strip()}: {value.strip()}"))
+    return rules
+
+
+def text_decorations_on_s(page: str) -> list[str]:
+    """The text-decoration values the page's styles give a bare <s> element."""
+    values: list[str] = []
+    for selector, declaration in style_rules(page):
+        final_selector = selector.split()[-1]
+        if final_selector not in {"s", "*"}:
+            continue
+        name, _, value = declaration.partition(":")
+        if name.lower() in {"text-decoration", "text-decoration-line"}:
+            values.append(value.lower())
+    return values
+
+
+def assert_page_styles_keep_title_struck_through(page: str, row: str, title: str) -> None:
+    """The title is in <s> and no page style replaces that strike-through."""
+    assert f"<s>{html.escape(title)}</s>" in row, "the done title should be struck through"
+    decorations = text_decorations_on_s(page)
+    assert not any("line-through" not in value for value in decorations), (
+        "the page styles must not replace or cancel the strike-through"
+    )
+
+
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     """Spec 003 case 5 and spec 004 case 4: every row renders its own two actions.
 
@@ -960,3 +997,29 @@ def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
     assert posted.headers["location"] == "/"
     assert todo.done
     assert remaining_count(client.get("/").text) == "4 left"
+
+
+def test_case_2_page_styles_keep_a_done_title_struck_through() -> None:
+    """Case 2: the page styles keep a done row's title struck through."""
+    todo = next(one for one in main.todos if one.done)
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert_page_styles_keep_title_struck_through(page, row, todo.title)
+
+
+def test_case_5_page_styles_keep_a_newly_done_title_struck_through() -> None:
+    """Case 5: the page styles keep a title struck through once its open box is clicked."""
+    todo = main.add("Wash the car")
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    action = form_attributes(forms_in(row)[0]).get("action")
+    assert action is not None, "the open box should name its POST target"
+
+    response = client.post(action, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert_page_styles_keep_title_struck_through(page, row, todo.title)
