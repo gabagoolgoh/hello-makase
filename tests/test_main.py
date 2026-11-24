@@ -766,11 +766,24 @@ def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
 
 
 def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
-    """Case 6: posting a done row's box answers 303 to /, unticks it, and raises the count."""
+    """Case 6: submitting a done row's rendered box answers 303 to /, unticks it, and raises the count."""
     todo = next(one for one in main.todos if one.done)
     assert remaining_count(client.get("/").text) == "4 left"
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/undo")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    assert button_attributes(box_buttons[0]).get("type") == "submit", (
+        "the box must be a submit control"
+    )
+    action = form_attributes(box_form).get("action")
+    assert action is not None, "the box form should name its POST target"
 
-    response = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+    response = client.post(action, follow_redirects=False)
 
     assert response.status_code == 303
     assert response.headers["location"] == "/"
@@ -778,7 +791,9 @@ def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
     page = client.get("/").text
     row = rendered_item(page, todo.title)
     assert "&#9744;" in row
-    assert "<s>" not in row
+    assert "<s>" not in row, "the reopened row should not be struck through"
+    row_forms = forms_in(row)
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
     assert remaining_count(page) == "5 left"
 
 
