@@ -731,7 +731,7 @@ def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
 
     for row in rows:
         for button in buttons_in(row):
-            visible_word = re.sub(r"<[^>]+>", "", button).strip()
+            visible_word = button_text(button)
             assert visible_word not in {"Done", "Undo"}
 
 
