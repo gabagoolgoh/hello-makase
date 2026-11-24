@@ -65,6 +65,8 @@ def item(todo: Todo) -> str:
 def render() -> str:
     """The whole page, as one HTML string."""
     items = "\n".join(item(todo) for todo in todos)
+    left = sum(1 for todo in todos if not todo.done)
+    count = "Nothing left" if left == 0 else f"{left} left"
     return f"""<!doctype html>
 <html lang="en">
 <head>
@@ -84,6 +86,7 @@ def render() -> str:
 <body>
   <main>
     <h1>To-dos</h1>
+    <p class="remaining">{count}</p>
     <ul>
 {items}
     </ul>

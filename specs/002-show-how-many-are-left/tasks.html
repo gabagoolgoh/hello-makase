@@ -24,8 +24,8 @@
 </table>
 
 <ol class="tasks">
-  <li data-group="A">☐ <strong>A1. <code>tests/test_main.py</code>: tests that the page shows the count of the starter to-dos that are not done, that adding one raises the count by one, and that with every to-do done it says <q>Nothing left</q>.</strong></li>
-  <li data-group="A">☐ <strong>A2. <code>app/main.py</code>: render a line under the heading with the number of to-dos whose <code>done</code> flag is not set, as <q>N left</q>, <q>1 left</q> for one, and <q>Nothing left</q> for none.</strong></li>
+  <li data-group="A">☑ <strong>A1. <code>tests/test_main.py</code>: tests that the page shows the count of the starter to-dos that are not done, that adding one raises the count by one, and that with every to-do done it says <q>Nothing left</q>.</strong><br>✓ <code>uv run pytest tests/test_main.py -k 'counts_the_todos or raises_the_count or one_left or nothing_left'</code>: the four new tests failed before the count was rendered, as expected. Also covers <q>1 left</q> for a single remaining to-do.</li>
+  <li data-group="A">☑ <strong>A2. <code>app/main.py</code>: render a line under the heading with the number of to-dos whose <code>done</code> flag is not set, as <q>N left</q>, <q>1 left</q> for one, and <q>Nothing left</q> for none.</strong><br>✓ <code>uv run pytest tests/test_main.py</code>: 11 passed, including the four new count tests. The count is rendered server-side as <code>&lt;p class="remaining"&gt;</code> directly under the heading.</li>
 </ol>
 
 </main>

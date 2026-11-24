@@ -52,6 +52,36 @@ def test_a_done_todo_is_drawn_differently() -> None:
     assert done != not_done
 
 
+def test_the_page_counts_the_todos_that_are_not_done() -> None:
+    page = client.get("/").text
+
+    assert "4 left" in page
+
+
+def test_adding_a_todo_raises_the_count_by_one() -> None:
+    before = client.get("/").text
+
+    client.post("/todos", data={"title": "Fix the bike"})
+
+    after = client.get("/").text
+    assert "4 left" in before
+    assert "5 left" in after
+
+
+def test_one_left_when_only_one_todo_is_not_done() -> None:
+    for todo in main.todos:
+        todo.done = todo.title != "Water the plants"
+
+    assert "1 left" in client.get("/").text
+
+
+def test_nothing_left_when_every_todo_is_done() -> None:
+    for todo in main.todos:
+        todo.done = True
+
+    assert "Nothing left" in client.get("/").text
+
+
 def test_a_title_is_escaped() -> None:
     client.post("/todos", data={"title": "<b>bold</b>"})
 
