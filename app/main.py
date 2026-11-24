@@ -50,11 +50,15 @@ def add(title: str) -> Todo:
 
 
 def item(todo: Todo) -> str:
-    """One to-do's list item: its escaped title, struck through once it is done, and a *Done*
-    button beside it until then."""
+    """One to-do's list item: its escaped title, struck through with an *Undo* button beside it
+    once it is done, and a *Done* button beside it until then."""
     title = html.escape(todo.title)
     if todo.done:
-        return f'      <li class="todo done"><s>{title}</s></li>'
+        undo = (
+            f'<form class="undo" method="post" action="/todos/{todo.id}/undo">'
+            '<button type="submit">Undo</button></form>'
+        )
+        return f'      <li class="todo done"><s>{title}</s> {undo}</li>'
     done = (
         f'<form class="done" method="post" action="/todos/{todo.id}/done">'
         '<button type="submit">Done</button></form>'
@@ -80,7 +84,7 @@ def render() -> str:
     li {{ margin: 0.3rem 0; }}
     form.add {{ display: flex; gap: 0.5rem; margin-top: 1rem; }}
     form.add input {{ flex: 1; }}
-    form.done {{ display: inline; margin-left: 0.5rem; }}
+    form.done, form.undo {{ display: inline; margin-left: 0.5rem; }}
   </style>
 </head>
 <body>
@@ -125,6 +129,16 @@ def mark_done(todo_id: int) -> RedirectResponse:
     if todo is None:
         raise HTTPException(status_code=404, detail="There is no such to-do.")
     todo.done = True
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/todos/{todo_id}/undo")
+def mark_undone(todo_id: int) -> RedirectResponse:
+    """Mark one to-do not done, then send the browser back to the page. An unknown id is 404."""
+    todo = next((one for one in todos if one.id == todo_id), None)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="There is no such to-do.")
+    todo.done = False
     return RedirectResponse("/", status_code=303)
 
 
