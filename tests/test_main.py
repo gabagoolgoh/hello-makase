@@ -573,9 +573,10 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         assert len(box_buttons) == 1
         box_attributes = button_attributes(box_buttons[0])
         assert expected_glyph in box_buttons[0]
-        if not todo.done:
-            assert box_attributes.get("type") == "submit", "an open row's box must be a submit control"
-            assert button_text(box_buttons[0]) == "☐"
+        assert box_attributes.get("type") == "submit", f"{todo.title}'s box must be a submit control"
+        assert button_text(box_buttons[0]) == ("☑" if todo.done else "☐"), (
+            f"{todo.title}'s box must display its glyph as visible text"
+        )
         assert box_attributes.get("role") == "checkbox"
         assert box_attributes.get("aria-checked") == expected_checked
         assert box_attributes.get("aria-label") == todo.title
@@ -683,7 +684,8 @@ def test_case_2_a_done_row_starts_with_a_ticked_box_posting_undo() -> None:
     assert len(box_buttons) == 1, "the box form should hold only the box button"
     box_button = box_buttons[0]
     attributes = button_attributes(box_button)
-    assert "&#9745;" in box_button
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "☑", "the tick must be the box's visible text"
     assert attributes.get("role") == "checkbox"
     assert attributes.get("aria-checked") == "true"
     assert attributes.get("aria-label") == todo.title
