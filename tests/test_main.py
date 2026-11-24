@@ -238,17 +238,21 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
 def test_undoing_an_unknown_todo_is_404() -> None:
     """Case 7: an unknown id is 404 and changes nothing, including when the list is empty."""
     before = [(one.id, one.title, one.done) for one in main.todos]
+    before_count = remaining_count(client.get("/").text)
     unknown = max(one.id for one in main.todos) + 1
 
     response = client.post(f"/todos/{unknown}/undo", follow_redirects=False)
 
     assert response.status_code == 404
     assert [(one.id, one.title, one.done) for one in main.todos] == before
+    assert remaining_count(client.get("/").text) == before_count
 
     main.todos.clear()
+    empty_count = remaining_count(client.get("/").text)
     response = client.post("/todos/1/undo", follow_redirects=False)
     assert response.status_code == 404
     assert main.todos == []
+    assert remaining_count(client.get("/").text) == empty_count
 
 
 def test_a_non_integer_undo_id_is_422() -> None:
