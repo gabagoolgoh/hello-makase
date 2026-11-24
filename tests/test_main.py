@@ -552,6 +552,19 @@ def buttons_in(fragment: str) -> list[str]:
     )
 
 
+def input_controls_in(fragment: str) -> list[str]:
+    """Each whole live ``<input ...>`` control in a page fragment."""
+    return re.findall(r"<input\b[^>]*>", without_inert_markup(fragment), re.IGNORECASE)
+
+
+def input_label(control: str) -> str:
+    """The label a browser shows for a button-type input, decoded."""
+    attributes = button_attributes(control)
+    if attributes.get("type", "").lower() == "image":
+        return html.unescape(attributes.get("alt", "")).strip()
+    return html.unescape(attributes.get("value", "")).strip()
+
+
 def button_attributes(button: str) -> dict[str, str]:
     """The attributes on a button's opening tag, by their real names."""
     opening = button[: button.index(">")]
@@ -792,7 +805,7 @@ def test_case_3_every_row_is_box_then_title_then_delete() -> None:
 
 
 def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
-    """Case 4: no row has a button whose visible word is Done or Undo."""
+    """Case 4: no row has a button or button-type input showing Done or Undo."""
     page = client.get("/").text
     rows = rendered_list_items(page)
     assert rows
@@ -801,6 +814,17 @@ def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
         for button in buttons_in(row):
             visible_word = button_text(button)
             assert visible_word not in {"Done", "Undo"}
+        button_inputs = [
+            control
+            for control in input_controls_in(row)
+            if button_attributes(control).get("type", "").lower()
+            in {"button", "submit", "reset", "image"}
+        ]
+        for control in button_inputs:
+            visible_word = input_label(control)
+            assert visible_word not in {"Done", "Undo"}, (
+                f"a button-type input displaying {visible_word} should not appear in a row"
+            )
 
 
 def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
