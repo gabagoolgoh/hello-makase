@@ -377,26 +377,36 @@ def posts_to(form: str, path: str) -> bool:
 
 
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
-    """Case 5: done items render Undo then Delete; open items render Done then Delete."""
-    done = next(one for one in main.todos if one.done)
-    open_todo = next(one for one in main.todos if not one.done)
+    """Spec 003 case 5 and spec 004 case 4: every row renders its own two actions.
+
+    A done row renders Undo then Delete; an open row renders Done then Delete. Every row of
+    a list holding several to-dos in each state is checked, not just the first of each.
+    """
+    main.add("Post the letter").done = True
+    main.add("Wash the car").done = True
     page = client.get("/").text
 
-    done_forms = forms_in(rendered_item(page, done.title))
-    assert len(done_forms) == 2, "a done to-do should offer exactly two actions, Undo then Delete"
-    assert posts_to(done_forms[0], f"/todos/{done.id}/undo")
-    assert '<button type="submit">Undo</button>' in done_forms[0]
-    assert posts_to(done_forms[1], f"/todos/{done.id}/delete")
-    assert '<button type="submit">Delete</button>' in done_forms[1]
+    done_todos = [one for one in main.todos if one.done]
+    open_todos = [one for one in main.todos if not one.done]
+    assert len(done_todos) > 1, "the list should hold several done to-dos"
+    assert len(open_todos) > 1, "the list should hold several open to-dos"
 
-    open_row = rendered_item(page, open_todo.title)
-    open_forms = forms_in(open_row)
-    assert len(open_forms) == 2, "an open to-do should offer exactly two actions, Done then Delete"
-    assert posts_to(open_forms[0], f"/todos/{open_todo.id}/done")
-    assert '<button type="submit">Done</button>' in open_forms[0]
-    assert posts_to(open_forms[1], f"/todos/{open_todo.id}/delete")
-    assert '<button type="submit">Delete</button>' in open_forms[1]
-    assert "Undo" not in open_row, "the whole open row should offer no Undo action"
+    for todo in main.todos:
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions"
+
+        first_action = "undo" if todo.done else "done"
+        first_button = "Undo" if todo.done else "Done"
+        assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}"), (
+            f"{todo.title} should act on itself with {first_button}"
+        )
+        assert f'<button type="submit">{first_button}</button>' in row_forms[0]
+        assert posts_to(row_forms[1], f"/todos/{todo.id}/delete"), (
+            f"{todo.title} should offer Delete after {first_button}"
+        )
+        assert '<button type="submit">Delete</button>' in row_forms[1]
+        assert ("Undo" in row) is todo.done, "only a done row should offer Undo"
 
 
 def test_undoing_an_unknown_todo_is_404() -> None:
