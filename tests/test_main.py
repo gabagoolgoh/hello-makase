@@ -1,4 +1,5 @@
 import html
+import re
 from collections.abc import Iterator
 
 import pytest
@@ -133,11 +134,11 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
 def test_undoing_raises_the_remaining_count_by_one() -> None:
     """Case 2: unticking a done starter takes the page from 4 left to 5 left."""
     done = next(one for one in main.todos if one.done)
-    assert "4 left" in client.get("/").text
+    assert remaining_count(client.get("/").text) == "4 left"
 
     client.post(f"/todos/{done.id}/undo", follow_redirects=False)
 
-    assert "5 left" in client.get("/").text
+    assert remaining_count(client.get("/").text) == "5 left"
 
 
 def test_undoing_the_last_done_todo_leaves_one_left() -> None:
@@ -186,6 +187,13 @@ def test_undoing_an_open_todo_is_idempotent() -> None:
 def rendered_item(page: str, title: str) -> str:
     """The one line of the page rendering the list item for ``title``."""
     return next(line for line in page.splitlines() if html.escape(title) in line)
+
+
+def remaining_count(page: str) -> str:
+    """The text of the page's remaining-count paragraph."""
+    match = re.search(r'<p class="remaining">([^<]*)</p>', page)
+    assert match is not None, "the page should show its remaining count"
+    return match.group(1)
 
 
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
