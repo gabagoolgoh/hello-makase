@@ -127,7 +127,17 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     row = rendered_item(page, todo.title)
     assert html.escape(todo.title) in row
     assert "<s>" not in row
-    assert '<button type="submit">Done</button>' in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    box_attributes = button_attributes(box_buttons[0])
+    assert "&#9744;" in box_buttons[0]
+    assert box_attributes.get("role") == "checkbox"
+    assert box_attributes.get("aria-checked") == "false"
+    assert box_attributes.get("aria-label") == todo.title
+    assert "Done" not in row
     assert "Undo" not in row
 
 
@@ -508,6 +518,21 @@ def posts_to(form: str, path: str) -> bool:
     return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
 
 
+def buttons_in(fragment: str) -> list[str]:
+    """Each whole ``<button ...>...</button>`` in a page fragment."""
+    return re.findall(r"<button\b[^>]*>.*?</button>", fragment, re.DOTALL)
+
+
+def button_attributes(button: str) -> dict[str, str]:
+    """The attributes on a button's opening tag, by their real names."""
+    opening = button[: button.index(">")]
+    pairs = re.findall(
+        r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))''',
+        opening,
+    )
+    return {name.lower(): double or single or bare for name, double, single, bare in pairs}
+
+
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     """Spec 003 case 5 and spec 004 case 4: every row renders its own two actions.
 
@@ -533,16 +558,24 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions inside its row"
 
         first_action = "undo" if todo.done else "done"
-        first_button = "Undo" if todo.done else "Done"
+        expected_glyph = "&#9745;" if todo.done else "&#9744;"
+        expected_checked = "true" if todo.done else "false"
         assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}"), (
-            f"{todo.title} should act on itself with {first_button}"
+            f"{todo.title} should act on itself with its {first_action} box"
         )
-        assert f'<button type="submit">{first_button}</button>' in row_forms[0]
+        box_buttons = buttons_in(row_forms[0])
+        assert len(box_buttons) == 1
+        box_attributes = button_attributes(box_buttons[0])
+        assert expected_glyph in box_buttons[0]
+        assert box_attributes.get("role") == "checkbox"
+        assert box_attributes.get("aria-checked") == expected_checked
+        assert box_attributes.get("aria-label") == todo.title
         assert posts_to(row_forms[1], f"/todos/{todo.id}/delete"), (
-            f"{todo.title} should offer Delete after {first_button}"
+            f"{todo.title} should offer Delete after its box"
         )
         assert '<button type="submit">Delete</button>' in row_forms[1]
-        assert ("Undo" in row) is todo.done, "only a done row should offer Undo"
+        assert "Done" not in row, "no row should show a Done button"
+        assert "Undo" not in row, "no row should show an Undo button"
 
 
 def test_undoing_an_unknown_todo_is_404() -> None:
@@ -590,4 +623,190 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert html.escape(todo.title) in row
     assert "<b>bold</b>" not in page
     assert "<s>" not in row, "the reopened row should not be struck through"
-    assert '<button type="submit">Done</button>' in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    box_attributes = button_attributes(box_buttons[0])
+    assert "&#9744;" in box_buttons[0]
+    assert box_attributes.get("role") == "checkbox"
+    assert box_attributes.get("aria-checked") == "false"
+    assert box_attributes.get("aria-label") == html.escape(todo.title)
+
+
+def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
+    """Case 1: an open row's only box form posts to /done as an unchecked checkbox."""
+    todo = main.add("Wash the car")
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+
+    assert not todo.done
+    assert html.escape(todo.title) in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert "&#9744;" in box_button
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "false"
+    assert attributes.get("aria-label") == todo.title
+
+
+def test_case_2_a_done_row_starts_with_a_ticked_box_posting_undo() -> None:
+    """Case 2: a done row's only box form posts to /undo as a checked checkbox."""
+    todo = main.add("Post the letter")
+    todo.done = True
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+
+    assert html.escape(todo.title) in row
+    assert f"<s>{html.escape(todo.title)}</s>" in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/undo")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert "&#9745;" in box_button
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "true"
+    assert attributes.get("aria-label") == todo.title
+
+
+def test_case_3_every_row_is_box_then_title_then_delete() -> None:
+    """Case 3: each row has exactly two real POST forms, its box and its Delete."""
+    page = client.get("/").text
+    rows = rendered_list_items(page)
+    assert len(rows) == len(main.todos)
+
+    for todo in main.todos:
+        matching_rows = [row for row in rows if html.escape(todo.title) in row]
+        assert len(matching_rows) == 1
+        row = matching_rows[0]
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions"
+        first_action = "undo" if todo.done else "done"
+        assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}")
+        assert posts_to(row_forms[1], f"/todos/{todo.id}/delete")
+        box_end = row.index(row_forms[0]) + len(row_forms[0])
+        visible_title = row.find(html.escape(todo.title), box_end)
+        assert 0 <= visible_title < row.index(row_forms[1]), (
+            "the box should come before the title, and Delete after it"
+        )
+
+
+def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
+    """Case 4: no row has a button whose visible word is Done or Undo."""
+    page = client.get("/").text
+    rows = rendered_list_items(page)
+    assert rows
+
+    for row in rows:
+        for button in buttons_in(row):
+            visible_word = re.sub(r"<[^>]+>", "", button).strip()
+            assert visible_word not in {"Done", "Undo"}
+
+
+def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
+    """Case 5: posting an open row's box answers 303 to /, ticks it, and lowers the count."""
+    todo = main.add("Wash the car")
+    assert remaining_count(client.get("/").text) == "5 left"
+
+    response = client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert "&#9745;" in row
+    assert f"<s>{html.escape(todo.title)}</s>" in row
+    assert remaining_count(page) == "4 left"
+
+
+def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
+    """Case 6: posting a done row's box answers 303 to /, unticks it, and raises the count."""
+    todo = next(one for one in main.todos if one.done)
+    assert remaining_count(client.get("/").text) == "4 left"
+
+    response = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert "&#9744;" in row
+    assert "<s>" not in row
+    assert remaining_count(page) == "5 left"
+
+
+def test_case_7_posting_the_same_box_twice_keeps_the_state_it_names() -> None:
+    """Case 7: repeating a box's POST leaves the state that box named, not flipped."""
+    open_todo = main.add("Wash the car")
+    for _ in range(2):
+        response = client.post(f"/todos/{open_todo.id}/done", follow_redirects=False)
+        assert response.status_code == 303
+    assert open_todo.done
+    assert "&#9745;" in rendered_item(client.get("/").text, open_todo.title)
+
+    done_todo = main.add("Post the letter")
+    done_todo.done = True
+    for _ in range(2):
+        response = client.post(f"/todos/{done_todo.id}/undo", follow_redirects=False)
+        assert response.status_code == 303
+    assert not done_todo.done
+    assert "&#9744;" in rendered_item(client.get("/").text, done_todo.title)
+
+
+def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
+    """Case 8: a title with <, & or " is escaped in the box label and the visible title."""
+    todo = main.add('<b>bold & "quoted"</b>')
+
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    attributes = button_attributes(box_buttons[0])
+    assert attributes.get("aria-label") == html.escape(todo.title)
+    assert html.escape(todo.title) in row
+    assert todo.title not in page, "the raw title must not break the attribute or the text"
+
+
+def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
+    """Case 9: an empty list renders no boxes and still offers the Add form."""
+    main.todos.clear()
+
+    page = client.get("/").text
+
+    assert rendered_list_items(page) == []
+    assert not any(
+        button_attributes(button).get("role") == "checkbox" for button in buttons_in(page)
+    )
+    add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
+    assert len(add_forms) == 1, "the empty page should still offer its Add form"
+    assert '<button type="submit">Add</button>' in add_forms[0]
+
+
+def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
+    """Case 10: a to-do added through the Add form renders with an empty box."""
+    response = client.post("/todos", data={"title": "Fix the bike"}, follow_redirects=False)
+    assert response.status_code == 303
+    todo = next(one for one in main.todos if one.title == "Fix the bike")
+
+    row = rendered_item(client.get("/").text, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    assert "&#9744;" in box_buttons[0]
+    assert button_attributes(box_buttons[0]).get("aria-checked") == "false"

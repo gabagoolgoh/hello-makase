@@ -57,25 +57,27 @@ def add(title: str) -> Todo:
 
 
 def item(todo: Todo) -> str:
-    """One to-do's list item: its escaped title, struck through with an *Undo* button beside it
-    once it is done, and a *Done* button beside it until then, plus a *Delete* button after
-    either one."""
+    """One to-do's list item: a box that sets its state, its escaped title struck through
+    once it is done, and a *Delete* button after either one. The box is the row's Done or
+    Undo form, drawn as an empty or ticked checkbox and labelled with the title."""
     title = html.escape(todo.title)
     delete = (
         f'<form class="delete" method="post" action="/todos/{todo.id}/delete">'
         '<button type="submit">Delete</button></form>'
     )
     if todo.done:
-        undo = (
+        box = (
             f'<form class="undo" method="post" action="/todos/{todo.id}/undo">'
-            '<button type="submit">Undo</button></form>'
+            f'<button type="submit" role="checkbox" aria-checked="true" aria-label="{title}">'
+            "&#9745;</button></form>"
         )
-        return f'      <li class="todo done"><s>{title}</s> {undo} {delete}</li>'
-    done = (
+        return f'      <li class="todo done">{box} <s>{title}</s> {delete}</li>'
+    box = (
         f'<form class="done" method="post" action="/todos/{todo.id}/done">'
-        '<button type="submit">Done</button></form>'
+        f'<button type="submit" role="checkbox" aria-checked="false" aria-label="{title}">'
+        "&#9744;</button></form>"
     )
-    return f'      <li class="todo">{title} {done} {delete}</li>'
+    return f'      <li class="todo">{box} {title} {delete}</li>'
 
 
 def render() -> str:
@@ -97,7 +99,9 @@ def render() -> str:
     li {{ margin: 0.25rem 0; }}
     form.add {{ display: flex; gap: 0.5rem; margin-top: 0.55rem; }}
     form.add input {{ flex: 1; min-width: 0; }}
-    form.done, form.undo, form.delete {{ display: inline; margin-left: 0.5rem; }}
+    form.done, form.undo {{ display: inline; margin-right: 0.4rem; }}
+    form.done button, form.undo button {{ padding: 0 0.2rem; border: 1px solid currentColor; border-radius: 0.15rem; background: #ffffff; color: inherit; font: inherit; line-height: 1.2; cursor: pointer; }}
+    form.delete {{ display: inline; margin-left: 0.5rem; }}
   </style>
 </head>
 <body>
