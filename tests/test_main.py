@@ -330,7 +330,9 @@ def test_deleting_an_html_title_removes_its_escaped_row() -> None:
 
     assert html.escape(todo.title) in row
     assert todo.title not in page
-    assert posts_to(forms_in(row)[1], f"/todos/{todo.id}/delete")
+    delete_form = forms_in(row)[1]
+    assert posts_to(delete_form, f"/todos/{todo.id}/delete")
+    assert '<button type="submit">Delete</button>' in delete_form
 
     response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
 
