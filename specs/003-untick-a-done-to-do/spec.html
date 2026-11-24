@@ -1,0 +1,199 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 003: Untick a done to-do</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="003">
+  <meta name="makase-walk" content="short">
+  <meta name="makase-walk-says" content="short: rated 2 of 5 by claude-haiku-5-5. One new route and a small change to the item renderer in app/main.py, with the behaviour and HTTP contract already pinned down by the spec and decisions.">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="001">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="ask">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<!--
+  Everything visual comes from assets/spec.css — never inline CSS here.
+  Class vocabulary it provides, all optional beyond .doc / .meta / .badge:
+
+    .subtitle    serif italic standfirst under the h1
+    .eyebrow     small mono uppercase label; sits above a heading or opens a card
+    .tldr        boxed lead summary — the "read this if nothing else" block
+    .note        accent callout        .warn-box  caution callout
+    .verdict     bordered conclusion box, heavier than .note
+    blockquote   serif pull-quote; put attribution in a <cite>
+    .cards/.card responsive card grid (h4 titles)
+    .scroll-x    wrapper for any wide table
+    .chip        inline status pill for table cells (.ok / .warn / .stop)
+    ol.decisions the decision list
+    figure.chart inline SVG chart: .chart-title, .chart-sub, .chart-legend,
+                 .chart-scroll, a <details> table view, and the --viz-* colour
+                 roles (validated for colour-vision safety — see spec.css)
+    .mock-*      board/card UI mockups — UI workshop docs only, never drawn in
+                 a spec's prose; full vocabulary in spec.css's "UI mockups" block
+    .look-frame  one of the two pictures a spec may carry: the look its
+                 brainstorm picked, which makase places in its own "The picked
+                 look" section as a frame onto look.html beside the spec.
+    .diagram-frame  the other: the diagram its brainstorm drew of the
+                 architecture, which makase places in its own "The drawn
+                 diagram" section as a frame onto diagram.html beside the
+                 spec. makase places both; neither is ever written by hand,
+                 and neither is ever a picture nobody saw.
+-->
+<main class="doc">
+
+  <h1>Spec 003: Untick a done to-do</h1>
+  <p class="subtitle">Done to-dos get an Undo button that marks them not done again.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Approved</dt><dd>2026-11-24</dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-24</dd>
+    <dt>Depends on</dt><dd>001</dd>
+    <dt>Merge</dt><dd>needs your approval</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>You open the to-do page in Test, press Undo beside a struck-through to-do, and the page reloads with that to-do no longer struck through and its Done button back. The remaining count at the top goes up by one.</p>
+
+  <h2>What</h2>
+  <p>
+    Today <code>app/main.py</code> renders a done to-do as struck-through text with no action
+    beside it, because item <code>001</code> intentionally stopped at marking tasks done. Add an
+    inline <strong>Undo</strong> control beside every done to-do — as shown in <em>The picked
+    look</em>, captioned <q>Done to-dos get an inline Undo button matching the Done button on
+    open items</q> — implemented as a plain HTML form posting to
+    <code>POST /todos/{todo_id}/undo</code>.
+  </p>
+  <p>
+    When <code>POST /todos/{todo_id}/undo</code> receives a valid id, it clears the to-do's
+    <code>done</code> flag (<code>False</code>) and answers <code>303</code> back to
+    <code>/</code>; an unknown id answers <code>404</code>. On reload, the item renders without
+    strikethrough and with its <strong>Done</strong> button back, and the remaining count under
+    the heading rises by one automatically because <code>render()</code> already counts open
+    items directly from <code>todos</code> on every request (item <code>002</code>).
+  </p>
+  <p>
+    This item does <strong>not</strong> add JavaScript, checkboxes, client-side state,
+    persistence across restarts, bulk undo, or editing/deleting to-dos.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>app/main.py</code> (confirmed by reading) — <code>item(todo: Todo)</code> to emit
+      the inline <strong>Undo</strong> form beside struck-through done items while leaving open
+      items unchanged; <code>render()</code> to ensure the inline form rule covers the
+      <strong>Undo</strong> form while preserving the server-derived remaining count; and a new
+      route <code>POST /todos/{todo_id}/undo</code> that clears <code>todo.done</code> and
+      redirects <code>303</code> to <code>/</code> (or returns <code>404</code> when missing).
+      <strong>Must not change</strong>: <code>Todo</code>, <code>STARTERS</code>,
+      <code>todos</code>, <code>reset()</code>, <code>add()</code>, <code>GET /</code>,
+      <code>POST /todos</code>, <code>POST /todos/{todo_id}/done</code>, or the remaining-count
+      wording (<code>N left</code>, <code>1 left</code>, <code>Nothing left</code>).</li>
+    <li><code>tests/test_main.py</code> (confirmed by reading) — add <code>TestClient</code>
+      tests for the numbered cases below using the existing <code>client</code> and
+      <code>fresh_list</code> fixture, keeping all existing tests green.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li>Posting to <code>/todos/{todo_id}/undo</code> for a done to-do answers <code>303</code>
+      to <code>/</code>, clears <code>done</code>, and the reloaded page shows the title without
+      strikethrough, with a <strong>Done</strong> button and no <strong>Undo</strong> button.</li>
+    <li>Unticking a done to-do raises the remaining count on the reloaded page by one (for
+      example, from <code>4 left</code> to <code>5 left</code> on the starter list).</li>
+    <li>When every to-do is done (<code>Nothing left</code>), unticking one changes the
+      remaining count on the reloaded page to <code>1 left</code>.</li>
+    <li>Marking an open to-do done via <code>POST /todos/{todo_id}/done</code> and then
+      unticking it via <code>POST /todos/{todo_id}/undo</code> returns it to the open state, and
+      posting <code>Done</code> again marks it done again.</li>
+    <li>On <code>GET /</code>, a done to-do renders a form posting to
+      <code>/todos/{todo_id}/undo</code> with an <strong>Undo</strong> submit button, while an
+      open to-do renders only its <strong>Done</strong> form and no <strong>Undo</strong>
+      button.</li>
+    <li>Posting to <code>/todos/{todo_id}/undo</code> for a to-do that is already not done is
+      idempotent: it answers <code>303</code> to <code>/</code>, leaves <code>done</code> as
+      <code>False</code>, and leaves the remaining count and all other to-dos unchanged.</li>
+    <li>Posting to <code>/todos/{todo_id}/undo</code> for an unknown id (including when
+      <code>todos</code> is empty) answers <code>404</code> and leaves all existing to-dos and
+      the remaining count unchanged.</li>
+    <li>Posting to <code>/todos/not-an-int/undo</code> is refused with <code>422</code> and
+      leaves <code>todos</code> unchanged.</li>
+    <li>Unticking a done to-do whose title contains HTML characters (such as
+      <code>&lt;b&gt;bold&lt;/b&gt;</code>) reloads the page with the title still HTML-escaped.</li>
+  </ol>
+
+  <p class="note">
+    <strong>Merge gate check (by hand):</strong> open the to-do page in <em>Test</em>, confirm
+    that the <strong>Undo</strong> button sits inline beside the struck-through starter to-do
+    matching the <strong>Done</strong> button on open items (as shown in <em>The picked look</em>),
+    press <strong>Undo</strong>, and verify the page reloads with that to-do no longer struck
+    through, its <strong>Done</strong> button back, and the remaining count up by one.
+  </p>
+
+  <h2 id="look">The picked look: Done to-dos get an inline Undo button matching the Done button on open items</h2>
+  <p>Shown in the brainstorm as the look settled so far: <strong>Done to-dos get an inline Undo button matching the Done button on open items</strong>. makase placed it exactly as it was drawn; its source is <a href="look.html"><code>look.html</code></a>, beside this file. The build matches its layout, hierarchy, placement and token values, not its pixels, and its text is placeholder.</p>
+  <iframe class="look-frame" src="look.html" sandbox="" width="640" height="200" title="The picked look: Done to-dos get an inline Undo button matching the Done button on open items"></iframe>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Inline Undo button instead of a checkbox</strong>: rejected a checkbox toggle because the page uses plain HTML form posts with no JavaScript, so an inline <strong>Undo</strong> button beside each done task matches the existing <strong>Done</strong> control without adding client-side code.</li>
+    <li><strong>Dedicated undo route (<code>POST /todos/{todo_id}/undo</code>) rather than a toggle route</strong> <em>(chosen by makase)</em>: mirrors <code>POST /todos/{todo_id}/done</code> so repeated submissions of <strong>Undo</strong> cannot accidentally re-tick an item; easy to change later since only <code>app/main.py</code> emits and handles the path.</li>
+    <li><strong>Reuse the server-derived remaining count</strong>: no separate counter or update logic is added because <code>render()</code> already counts open items on every request (item <code>002</code>), so clearing <code>done</code> updates the count automatically.</li>
+    <li><strong>Return <code>404</code> on unknown id and <code>303</code> to <code>/</code> on success</strong> <em>(chosen by makase)</em>: matches <code>POST /todos/{todo_id}/done</code> so both item-state routes share the same HTTP contract.</li>
+    <li><strong>Idempotent when the to-do is already open</strong> <em>(chosen by makase)</em>: posting to <code>/todos/{todo_id}/undo</code> when <code>done</code> is already <code>False</code> redirects <code>303</code> to <code>/</code> with no error, matching how <code>/done</code> treats already-done items rather than returning <code>400</code> or <code>409</code>.</li>
+    <li><strong>Rests on item <code>001</code></strong>: relies on the <code>Todo.done</code> flag and the <strong>Done</strong> control introduced in <code>001</code> so unticking returns a task to its open state.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>
