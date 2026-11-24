@@ -196,18 +196,43 @@ def remaining_count(page: str) -> str:
     return match.group(1)
 
 
+def forms_in(fragment: str) -> list[str]:
+    """Each whole ``<form ...>...</form>`` in a page fragment, with its opening tag.
+
+    A button outside a form is therefore not found, and neither is a form's method lost.
+    """
+    return re.findall(r"<form\b[^>]*>.*?</form>", fragment, re.DOTALL)
+
+
+def posts_to(form: str, path: str) -> bool:
+    """Whether ``form`` posts to ``path``. A form with no method submits with GET."""
+    opening = form[: form.index(">")]
+    method = re.search(r'\bmethod\s*=\s*["\']?(\w+)', opening, re.IGNORECASE)
+    action = re.search(r'\baction\s*=\s*["\']([^"\']*)["\']', opening, re.IGNORECASE)
+    return (
+        method is not None
+        and method.group(1).lower() == "post"
+        and action is not None
+        and action.group(1) == path
+    )
+
+
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     """Case 5: done items render an Undo form; open items render only their Done form."""
     done = next(one for one in main.todos if one.done)
     open_todo = next(one for one in main.todos if not one.done)
     page = client.get("/").text
 
-    done_line = rendered_item(page, done.title)
-    open_line = rendered_item(page, open_todo.title)
-    assert f'action="/todos/{done.id}/undo"' in done_line
-    assert '<button type="submit">Undo</button>' in done_line
-    assert f'action="/todos/{open_todo.id}/done"' in open_line
-    assert "Undo" not in open_line
+    done_forms = forms_in(rendered_item(page, done.title))
+    assert len(done_forms) == 1, "a done to-do should offer exactly one action, Undo"
+    assert posts_to(done_forms[0], f"/todos/{done.id}/undo")
+    assert '<button type="submit">Undo</button>' in done_forms[0]
+
+    open_forms = forms_in(rendered_item(page, open_todo.title))
+    assert len(open_forms) == 1, "an open to-do should offer exactly one action, Done"
+    assert posts_to(open_forms[0], f"/todos/{open_todo.id}/done")
+    assert '<button type="submit">Done</button>' in open_forms[0]
+    assert "Undo" not in open_forms[0]
 
 
 def test_undoing_an_unknown_todo_is_404() -> None:
