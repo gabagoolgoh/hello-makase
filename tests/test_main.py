@@ -125,11 +125,11 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     assert not todo.done
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert html.escape(todo.title) in row
-    assert "<s>" not in row
     row_forms = forms_in(row)
     assert len(row_forms) == 2
     assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    assert "<s>" not in row
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
     box_buttons = buttons_in(row_forms[0])
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
@@ -484,6 +484,18 @@ def rendered_titles(page: str, todos: list[main.Todo]) -> list[str]:
     return titles
 
 
+def visible_title_between_forms(row: str, box_form: str, delete_form: str) -> str:
+    """The title a browser shows between a row's box form and its Delete form.
+
+    HTML comments and tags are dropped before decoding, so a title hidden in a comment, an
+    attribute, or the source generally does not count as visible title text.
+    """
+    start = row.index(box_form) + len(box_form)
+    between = row[start : row.index(delete_form, start)]
+    without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
+    return html.unescape(re.sub(r"<[^>]+>", "", without_comments)).strip()
+
+
 def remaining_count(page: str) -> str:
     """The text of the page's remaining-count paragraph."""
     match = re.search(r'<p class="remaining">([^<]*)</p>', page)
@@ -706,10 +718,8 @@ def test_case_3_every_row_is_box_then_title_then_delete() -> None:
         first_action = "undo" if todo.done else "done"
         assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}")
         assert posts_to(row_forms[1], f"/todos/{todo.id}/delete")
-        box_end = row.index(row_forms[0]) + len(row_forms[0])
-        visible_title = row.find(html.escape(todo.title), box_end)
-        assert 0 <= visible_title < row.index(row_forms[1]), (
-            "the box should come before the title, and Delete after it"
+        assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
+            "the title should be the visible text between the box and Delete"
         )
 
 
