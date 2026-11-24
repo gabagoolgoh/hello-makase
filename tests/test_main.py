@@ -736,11 +736,24 @@ def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
 
 
 def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
-    """Case 5: posting an open row's box answers 303 to /, ticks it, and lowers the count."""
+    """Case 5: submitting an open row's rendered box answers 303 to /, ticks it, and lowers the count."""
     todo = main.add("Wash the car")
     assert remaining_count(client.get("/").text) == "5 left"
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    assert button_attributes(box_buttons[0]).get("type") == "submit", (
+        "the box must be a submit control"
+    )
+    action = form_attributes(box_form).get("action")
+    assert action is not None, "the box form should name its POST target"
 
-    response = client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+    response = client.post(action, follow_redirects=False)
 
     assert response.status_code == 303
     assert response.headers["location"] == "/"
