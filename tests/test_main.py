@@ -204,17 +204,24 @@ def forms_in(fragment: str) -> list[str]:
     return re.findall(r"<form\b[^>]*>.*?</form>", fragment, re.DOTALL)
 
 
-def posts_to(form: str, path: str) -> bool:
-    """Whether ``form`` posts to ``path``. A form with no method submits with GET."""
+def form_attributes(form: str) -> dict[str, str]:
+    """The attributes on a form's opening tag, by their real names.
+
+    Parsing name/value pairs means ``data-method="post"`` is the attribute ``data-method``,
+    not the attribute ``method``.
+    """
     opening = form[: form.index(">")]
-    method = re.search(r'\bmethod\s*=\s*["\']?(\w+)', opening, re.IGNORECASE)
-    action = re.search(r'\baction\s*=\s*["\']([^"\']*)["\']', opening, re.IGNORECASE)
-    return (
-        method is not None
-        and method.group(1).lower() == "post"
-        and action is not None
-        and action.group(1) == path
+    pairs = re.findall(
+        r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))''',
+        opening,
     )
+    return {name.lower(): double or single or bare for name, double, single, bare in pairs}
+
+
+def posts_to(form: str, path: str) -> bool:
+    """Whether ``form`` really posts to ``path``. A form with no method submits with GET."""
+    attributes = form_attributes(form)
+    return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
 
 
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
@@ -228,11 +235,12 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     assert posts_to(done_forms[0], f"/todos/{done.id}/undo")
     assert '<button type="submit">Undo</button>' in done_forms[0]
 
-    open_forms = forms_in(rendered_item(page, open_todo.title))
+    open_row = rendered_item(page, open_todo.title)
+    open_forms = forms_in(open_row)
     assert len(open_forms) == 1, "an open to-do should offer exactly one action, Done"
     assert posts_to(open_forms[0], f"/todos/{open_todo.id}/done")
     assert '<button type="submit">Done</button>' in open_forms[0]
-    assert "Undo" not in open_forms[0]
+    assert "Undo" not in open_row, "the whole open row should offer no Undo action"
 
 
 def test_undoing_an_unknown_todo_is_404() -> None:
