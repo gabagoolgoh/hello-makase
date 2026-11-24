@@ -34,36 +34,48 @@ list with one already done."""
 todos: list[Todo] = []
 """Every to-do, in the order added. Nothing survives a restart."""
 
+next_id = 1
+"""The id the next to-do will get. It only goes up, so a deleted id is never reused."""
+
 
 def reset() -> None:
     """Put the list back to the starters. Runs at import, and before each test."""
+    global next_id
     todos.clear()
+    next_id = 1
     for title, done in STARTERS:
         add(title).done = done
 
 
 def add(title: str) -> Todo:
-    """Append a to-do with the next free id."""
-    todo = Todo(id=max((one.id for one in todos), default=0) + 1, title=title)
+    """Append a to-do with the next id from the counter."""
+    global next_id
+    todo = Todo(id=next_id, title=title)
+    next_id += 1
     todos.append(todo)
     return todo
 
 
 def item(todo: Todo) -> str:
     """One to-do's list item: its escaped title, struck through with an *Undo* button beside it
-    once it is done, and a *Done* button beside it until then."""
+    once it is done, and a *Done* button beside it until then, plus a *Delete* button after
+    either one."""
     title = html.escape(todo.title)
+    delete = (
+        f'<form class="delete" method="post" action="/todos/{todo.id}/delete">'
+        '<button type="submit">Delete</button></form>'
+    )
     if todo.done:
         undo = (
             f'<form class="undo" method="post" action="/todos/{todo.id}/undo">'
             '<button type="submit">Undo</button></form>'
         )
-        return f'      <li class="todo done"><s>{title}</s> {undo}</li>'
+        return f'      <li class="todo done"><s>{title}</s> {undo} {delete}</li>'
     done = (
         f'<form class="done" method="post" action="/todos/{todo.id}/done">'
         '<button type="submit">Done</button></form>'
     )
-    return f'      <li class="todo">{title} {done}</li>'
+    return f'      <li class="todo">{title} {done} {delete}</li>'
 
 
 def render() -> str:
@@ -85,7 +97,7 @@ def render() -> str:
     li {{ margin: 0.25rem 0; }}
     form.add {{ display: flex; gap: 0.5rem; margin-top: 0.55rem; }}
     form.add input {{ flex: 1; min-width: 0; }}
-    form.done, form.undo {{ display: inline; margin-left: 0.5rem; }}
+    form.done, form.undo, form.delete {{ display: inline; margin-left: 0.5rem; }}
   </style>
 </head>
 <body>
@@ -140,6 +152,16 @@ def mark_undone(todo_id: int) -> RedirectResponse:
     if todo is None:
         raise HTTPException(status_code=404, detail="There is no such to-do.")
     todo.done = False
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/todos/{todo_id}/delete")
+def delete(todo_id: int) -> RedirectResponse:
+    """Remove one to-do, then send the browser back to the page.
+
+    An id that is not on the list is already gone, so it also redirects rather than 404s.
+    """
+    todos[:] = [one for one in todos if one.id != todo_id]
     return RedirectResponse("/", status_code=303)
 
 

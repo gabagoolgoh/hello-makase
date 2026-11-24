@@ -184,6 +184,158 @@ def test_undoing_an_open_todo_is_idempotent() -> None:
     assert client.get("/").text == before_page
 
 
+def test_deleting_an_open_todo_removes_it_and_drops_the_count() -> None:
+    """Case 1: deleting an open to-do answers 303 to /, hides it, and lowers the count."""
+    todo = main.add("Walk the dog")
+    assert remaining_count(client.get("/").text) == "5 left"
+
+    response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    page = client.get("/").text
+    assert todo.id not in [one.id for one in main.todos]
+    assert todo.title not in page
+    assert remaining_count(page) == "4 left"
+
+
+def test_deleting_a_done_todo_removes_it_without_changing_the_count() -> None:
+    """Case 2: deleting a done to-do answers 303 to / and leaves the count unchanged."""
+    todo = main.add("Post the letter")
+    todo.done = True
+    assert remaining_count(client.get("/").text) == "4 left"
+
+    response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    page = client.get("/").text
+    assert todo.id not in [one.id for one in main.todos]
+    assert todo.title not in page
+    assert remaining_count(page) == "4 left"
+
+
+def test_deleting_one_todo_leaves_every_other_unchanged() -> None:
+    """Case 3: deleting one to-do preserves every other id, title, done flag and order."""
+    target = main.todos[1]
+    others = [(one.id, one.title, one.done) for one in main.todos if one is not target]
+
+    response = client.post(f"/todos/{target.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert [(one.id, one.title, one.done) for one in main.todos] == others
+
+
+def test_a_missing_or_repeated_delete_answers_303_and_changes_nothing() -> None:
+    """Case 5: an absent id, and deleting one to-do twice, both redirect and change nothing."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+    unknown = max(one.id for one in main.todos) + 1
+
+    response = client.post(f"/todos/{unknown}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+    target = main.todos[0]
+    first = client.post(f"/todos/{target.id}/delete", follow_redirects=False)
+    assert first.status_code == 303
+    after_first = [(one.id, one.title, one.done) for one in main.todos]
+    assert target.id not in [one.id for one in main.todos]
+
+    second = client.post(f"/todos/{target.id}/delete", follow_redirects=False)
+
+    assert second.status_code == 303
+    assert second.headers["location"] == "/"
+    assert [(one.id, one.title, one.done) for one in main.todos] == after_first
+
+
+def test_deleting_every_todo_leaves_an_empty_page_with_the_add_form() -> None:
+    """Case 6: deleting every to-do leaves the page rendering with Nothing left and Add."""
+    for todo in list(main.todos):
+        response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+        assert response.status_code == 303
+
+    assert main.todos == []
+    page = client.get("/").text
+    assert remaining_count(page) == "Nothing left"
+    add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
+    assert len(add_forms) == 1, "the empty page should still offer its Add form"
+    assert '<input name="title"' in add_forms[0]
+
+
+def test_a_new_todo_gets_an_unused_id_after_the_newest_is_deleted() -> None:
+    """Case 7: a deleted id is never reused, so a stale Delete cannot hit the new to-do."""
+    used_ids = {one.id for one in main.todos}
+    newest = max(main.todos, key=lambda one: one.id)
+
+    response = client.post(f"/todos/{newest.id}/delete", follow_redirects=False)
+    assert response.status_code == 303
+    client.post("/todos", data={"title": "Another thing"})
+    new_todo = next(one for one in main.todos if one.title == "Another thing")
+
+    assert new_todo.id not in used_ids, "a new to-do must not reuse a deleted id"
+
+    stale = client.post(f"/todos/{newest.id}/delete", follow_redirects=False)
+
+    assert stale.status_code == 303
+    assert new_todo in main.todos
+    assert new_todo.title in client.get("/").text
+
+
+def test_reset_numbers_the_starters_one_to_five() -> None:
+    """Case 8: reset() puts the starters back with ids 1 to 5."""
+    main.add("Temporary")
+
+    main.reset()
+
+    assert [one.id for one in main.todos] == [1, 2, 3, 4, 5]
+
+
+def test_a_non_integer_delete_id_is_422() -> None:
+    """Case 9: /todos/not-an-int/delete is refused and leaves the to-dos unchanged."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+
+    response = client.post("/todos/not-an-int/delete", follow_redirects=False)
+
+    assert response.status_code == 422
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+
+def test_done_and_undo_on_a_deleted_id_are_still_404() -> None:
+    """Case 10: after a Delete, Done and Undo on that id still answer 404."""
+    todo = main.add("Recycle the box")
+
+    deleted = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+    assert deleted.status_code == 303
+
+    done = client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+    undo = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+
+    assert done.status_code == 404
+    assert undo.status_code == 404
+    assert todo.id not in [one.id for one in main.todos]
+
+
+def test_deleting_an_html_title_removes_its_escaped_row() -> None:
+    """Case 11: an HTML title stays escaped beside Delete, and Delete removes it."""
+    client.post("/todos", data={"title": "<b>bold</b>"})
+    todo = next(one for one in main.todos if one.title == "<b>bold</b>")
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+
+    assert html.escape(todo.title) in row
+    assert todo.title not in page
+    assert posts_to(forms_in(row)[1], f"/todos/{todo.id}/delete")
+
+    response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    after = client.get("/").text
+    assert html.escape(todo.title) not in after
+    assert todo.title not in after
+
+
 def rendered_item(page: str, title: str) -> str:
     """The one line of the page rendering the list item for ``title``."""
     return next(line for line in page.splitlines() if html.escape(title) in line)
@@ -225,21 +377,25 @@ def posts_to(form: str, path: str) -> bool:
 
 
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
-    """Case 5: done items render an Undo form; open items render only their Done form."""
+    """Case 5: done items render Undo then Delete; open items render Done then Delete."""
     done = next(one for one in main.todos if one.done)
     open_todo = next(one for one in main.todos if not one.done)
     page = client.get("/").text
 
     done_forms = forms_in(rendered_item(page, done.title))
-    assert len(done_forms) == 1, "a done to-do should offer exactly one action, Undo"
+    assert len(done_forms) == 2, "a done to-do should offer exactly two actions, Undo then Delete"
     assert posts_to(done_forms[0], f"/todos/{done.id}/undo")
     assert '<button type="submit">Undo</button>' in done_forms[0]
+    assert posts_to(done_forms[1], f"/todos/{done.id}/delete")
+    assert '<button type="submit">Delete</button>' in done_forms[1]
 
     open_row = rendered_item(page, open_todo.title)
     open_forms = forms_in(open_row)
-    assert len(open_forms) == 1, "an open to-do should offer exactly one action, Done"
+    assert len(open_forms) == 2, "an open to-do should offer exactly two actions, Done then Delete"
     assert posts_to(open_forms[0], f"/todos/{open_todo.id}/done")
     assert '<button type="submit">Done</button>' in open_forms[0]
+    assert posts_to(open_forms[1], f"/todos/{open_todo.id}/delete")
+    assert '<button type="submit">Delete</button>' in open_forms[1]
     assert "Undo" not in open_row, "the whole open row should offer no Undo action"
 
 
