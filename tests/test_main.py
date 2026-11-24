@@ -899,16 +899,35 @@ def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
 
 
 def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
-    """Case 10: a to-do added through the Add form renders with an empty box."""
+    """Case 10: a to-do added through the Add form renders a usable empty box.
+
+    The box must be a submit control whose visible text is the empty glyph, with checkbox
+    semantics, so a glyph tucked into an attribute or a button that cannot submit fails.
+    """
     response = client.post("/todos", data={"title": "Fix the bike"}, follow_redirects=False)
     assert response.status_code == 303
     todo = next(one for one in main.todos if one.title == "Fix the bike")
 
     row = rendered_item(client.get("/").text, todo.title)
+    assert remaining_count(client.get("/").text) == "5 left"
     row_forms = forms_in(row)
     assert len(row_forms) == 2
-    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
-    box_buttons = buttons_in(row_forms[0])
-    assert len(box_buttons) == 1
-    assert "&#9744;" in box_buttons[0]
-    assert button_attributes(box_buttons[0]).get("aria-checked") == "false"
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "\u2610", "the empty glyph must be the box's visible text"
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "false"
+    assert html.unescape(attributes.get("aria-label", "")) == todo.title
+
+    action = form_attributes(box_form).get("action")
+    assert action is not None, "the box form should name its POST target"
+    posted = client.post(action, follow_redirects=False)
+    assert posted.status_code == 303
+    assert posted.headers["location"] == "/"
+    assert todo.done
+    assert remaining_count(client.get("/").text) == "4 left"
