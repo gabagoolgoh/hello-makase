@@ -125,9 +125,20 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     assert not todo.done
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert html.escape(todo.title) in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
     assert "<s>" not in row
-    assert '<button type="submit">Done</button>' in row
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    box_attributes = button_attributes(box_buttons[0])
+    assert box_attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_buttons[0]) == "☐"
+    assert box_attributes.get("role") == "checkbox"
+    assert box_attributes.get("aria-checked") == "false"
+    assert box_attributes.get("aria-label") == todo.title
+    assert "Done" not in row
     assert "Undo" not in row
 
 
@@ -473,6 +484,31 @@ def rendered_titles(page: str, todos: list[main.Todo]) -> list[str]:
     return titles
 
 
+def visible_title_between_forms(row: str, box_form: str, delete_form: str) -> str:
+    """The title a browser shows between a row's box form and its Delete form.
+
+    HTML comments and tags are dropped before decoding, so a title hidden in a comment, an
+    attribute, or the source generally does not count as visible title text.
+    """
+    start = row.index(box_form) + len(box_form)
+    between = row[start : row.index(delete_form, start)]
+    without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
+    return html.unescape(re.sub(r"<[^>]+>", "", without_comments)).strip()
+
+
+def title_markup_between_forms(row: str, box_form: str, delete_form: str) -> str:
+    """The escaped title source between a row's box form and its Delete form.
+
+    Tags and comments are dropped but entities are left as written, so an ampersand or quote
+    left raw in the visible title shows up instead of being silently decoded away. The box's
+    ``aria-label`` sits inside the box form, so it cannot satisfy this check.
+    """
+    start = row.index(box_form) + len(box_form)
+    between = row[start : row.index(delete_form, start)]
+    without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
+    return re.sub(r"<[^>]+>", "", without_comments).strip()
+
+
 def remaining_count(page: str) -> str:
     """The text of the page's remaining-count paragraph."""
     match = re.search(r'<p class="remaining">([^<]*)</p>', page)
@@ -480,12 +516,26 @@ def remaining_count(page: str) -> str:
     return match.group(1)
 
 
-def forms_in(fragment: str) -> list[str]:
-    """Each whole ``<form ...>...</form>`` in a page fragment, with its opening tag.
+def without_inert_markup(fragment: str) -> str:
+    """The fragment as a browser renders it, without comments or template contents."""
+    without_comments = re.sub(r"<!--.*?-->", "", fragment, flags=re.DOTALL)
+    return re.sub(
+        r"<template\b[^>]*>.*?</template>",
+        "",
+        without_comments,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
 
-    A button outside a form is therefore not found, and neither is a form's method lost.
+
+def forms_in(fragment: str) -> list[str]:
+    """Each whole live ``<form ...>...</form>`` in a page fragment, with its opening tag.
+
+    A button outside a form is therefore not found, and neither is a form's method lost. A
+    form inside a comment or an inert template is not live, so it is not found either.
     """
-    return re.findall(r"<form\b[^>]*>.*?</form>", fragment, re.DOTALL)
+    return re.findall(
+        r"<form\b[^>]*>.*?</form>", without_inert_markup(fragment), re.DOTALL
+    )
 
 
 def form_attributes(form: str) -> dict[str, str]:
@@ -506,6 +556,106 @@ def posts_to(form: str, path: str) -> bool:
     """Whether ``form`` really posts to ``path``. A form with no method submits with GET."""
     attributes = form_attributes(form)
     return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
+
+
+def tag_has_attribute(tag: str, name: str) -> bool:
+    """Whether a start tag carries an attribute, including a valueless boolean one."""
+    opening = tag[: tag.index(">")]
+    without_quoted_values = re.sub(r'"[^"]*"|\'[^\']*\'', "", opening)
+    return (
+        re.search(
+            rf"(?<![-:\w]){re.escape(name)}(?=\s|=|/?>)",
+            without_quoted_values,
+            re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def form_submission(form: str, submitter: str) -> tuple[str, str]:
+    """The method and target a browser sends when ``submitter`` activates ``form``.
+
+    A submitter's own ``formmethod`` and ``formaction`` override the form's, and a disabled
+    submitter cannot submit at all. The method is returned lower-cased.
+    """
+    assert not tag_has_attribute(submitter, "disabled"), "the box must be enabled to submit"
+    form_values = form_attributes(form)
+    submitter_values = button_attributes(submitter)
+    method = submitter_values.get("formmethod", form_values.get("method", ""))
+    action = submitter_values.get("formaction", form_values.get("action", ""))
+    return method.lower(), action
+
+
+def buttons_in(fragment: str) -> list[str]:
+    """Each whole live ``<button ...>...</button>`` in a page fragment."""
+    return re.findall(
+        r"<button\b[^>]*>.*?</button>", without_inert_markup(fragment), re.DOTALL
+    )
+
+
+def input_controls_in(fragment: str) -> list[str]:
+    """Each whole live ``<input ...>`` control in a page fragment."""
+    return re.findall(r"<input\b[^>]*>", without_inert_markup(fragment), re.IGNORECASE)
+
+
+def input_label(control: str) -> str:
+    """The label a browser shows for a button-type input, decoded."""
+    attributes = button_attributes(control)
+    if attributes.get("type", "").lower() == "image":
+        return html.unescape(attributes.get("alt", "")).strip()
+    return html.unescape(attributes.get("value", "")).strip()
+
+
+def button_attributes(button: str) -> dict[str, str]:
+    """The attributes on a button's opening tag, by their real names."""
+    opening = button[: button.index(">")]
+    pairs = re.findall(
+        r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))''',
+        opening,
+    )
+    return {name.lower(): double or single or bare for name, double, single, bare in pairs}
+
+
+def button_text(button: str) -> str:
+    """The visible text of a button, with tags stripped and entities decoded."""
+    return html.unescape(re.sub(r"<[^>]+>", "", button)).strip()
+
+
+def style_rules(page: str) -> list[tuple[str, str]]:
+    """Each selector and declaration pair from the page's own <style> block."""
+    style = re.search(r"<style>(.*?)</style>", page, re.DOTALL)
+    assert style is not None, "the page should carry its own styles"
+    css = re.sub(r"/\*.*?\*/", "", style.group(1), flags=re.DOTALL)
+    rules: list[tuple[str, str]] = []
+    for selector_text, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+        for selector in selector_text.split(","):
+            for declaration in body.split(";"):
+                name, separator, value = declaration.partition(":")
+                if separator:
+                    rules.append((selector.strip(), f"{name.strip()}: {value.strip()}"))
+    return rules
+
+
+def text_decorations_on_s(page: str) -> list[str]:
+    """The text-decoration values the page's styles give a bare <s> element."""
+    values: list[str] = []
+    for selector, declaration in style_rules(page):
+        final_selector = selector.split()[-1]
+        if final_selector not in {"s", "*"}:
+            continue
+        name, _, value = declaration.partition(":")
+        if name.lower() in {"text-decoration", "text-decoration-line"}:
+            values.append(value.lower())
+    return values
+
+
+def assert_page_styles_keep_title_struck_through(page: str, row: str, title: str) -> None:
+    """The title is in <s> and no page style replaces that strike-through."""
+    assert f"<s>{html.escape(title)}</s>" in row, "the done title should be struck through"
+    decorations = text_decorations_on_s(page)
+    assert not any("line-through" not in value for value in decorations), (
+        "the page styles must not replace or cancel the strike-through"
+    )
 
 
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
@@ -533,16 +683,28 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions inside its row"
 
         first_action = "undo" if todo.done else "done"
-        first_button = "Undo" if todo.done else "Done"
+        expected_glyph = "&#9745;" if todo.done else "&#9744;"
+        expected_checked = "true" if todo.done else "false"
         assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}"), (
-            f"{todo.title} should act on itself with {first_button}"
+            f"{todo.title} should act on itself with its {first_action} box"
         )
-        assert f'<button type="submit">{first_button}</button>' in row_forms[0]
+        box_buttons = buttons_in(row_forms[0])
+        assert len(box_buttons) == 1
+        box_attributes = button_attributes(box_buttons[0])
+        assert expected_glyph in box_buttons[0]
+        assert box_attributes.get("type") == "submit", f"{todo.title}'s box must be a submit control"
+        assert button_text(box_buttons[0]) == ("☑" if todo.done else "☐"), (
+            f"{todo.title}'s box must display its glyph as visible text"
+        )
+        assert box_attributes.get("role") == "checkbox"
+        assert box_attributes.get("aria-checked") == expected_checked
+        assert box_attributes.get("aria-label") == todo.title
         assert posts_to(row_forms[1], f"/todos/{todo.id}/delete"), (
-            f"{todo.title} should offer Delete after {first_button}"
+            f"{todo.title} should offer Delete after its box"
         )
         assert '<button type="submit">Delete</button>' in row_forms[1]
-        assert ("Undo" in row) is todo.done, "only a done row should offer Undo"
+        assert "Done" not in row, "no row should show a Done button"
+        assert "Undo" not in row, "no row should show an Undo button"
 
 
 def test_undoing_an_unknown_todo_is_404() -> None:
@@ -587,7 +749,371 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert not todo.done, "Undo should reopen the to-do, not leave it done"
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert html.escape(todo.title) in row
     assert "<b>bold</b>" not in page
     assert "<s>" not in row, "the reopened row should not be struck through"
-    assert '<button type="submit">Done</button>' in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1
+    box_attributes = button_attributes(box_buttons[0])
+    assert box_attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_buttons[0]) == "☐"
+    assert box_attributes.get("role") == "checkbox"
+    assert box_attributes.get("aria-checked") == "false"
+    assert html.unescape(box_attributes.get("aria-label", "")) == todo.title
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
+        "the reopened row should show its title as text, not only in the box label"
+    )
+
+
+def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
+    """Case 1: an open row's only box form posts to /done as an unchecked checkbox."""
+    todo = main.add("Wash the car")
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+
+    assert not todo.done
+    assert html.escape(todo.title) in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "☐"
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "false"
+    assert attributes.get("aria-label") == todo.title
+
+
+def test_case_2_a_done_row_starts_with_a_ticked_box_posting_undo() -> None:
+    """Case 2: a done row's only box form posts to /undo as a checked checkbox."""
+    todo = main.add("Post the letter")
+    todo.done = True
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+
+    assert html.escape(todo.title) in row
+    assert f"<s>{html.escape(todo.title)}</s>" in row
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/undo")
+    box_buttons = buttons_in(row_forms[0])
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "☑", "the tick must be the box's visible text"
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "true"
+    assert attributes.get("aria-label") == todo.title
+
+
+def test_case_3_every_row_is_box_then_title_then_delete() -> None:
+    """Case 3: each row starts with its live box form, then its title, then its live Delete."""
+    page = client.get("/").text
+    rows = rendered_list_items(page)
+    assert len(rows) == len(main.todos)
+
+    for todo in main.todos:
+        matching_rows = [row for row in rows if html.escape(todo.title) in row]
+        assert len(matching_rows) == 1
+        row = without_inert_markup(matching_rows[0])
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2, f"{todo.title} should offer exactly two live actions"
+        first_action = "undo" if todo.done else "done"
+        assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}")
+        assert posts_to(row_forms[1], f"/todos/{todo.id}/delete")
+        assert len(buttons_in(row_forms[0])) == 1, (
+            f"{todo.title}'s box form should hold one live box button"
+        )
+
+        opening = re.match(r"<li\b[^>]*>", row)
+        assert opening is not None, "each row should be a list item"
+        body = row[opening.end() : row.rindex("</li>")].strip()
+        assert body.startswith(row_forms[0]), (
+            "the row should start with its box form, with no visible text before it"
+        )
+        assert body.endswith(row_forms[1]), (
+            "the row should end with its Delete form, with no visible text after it"
+        )
+        assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
+            "the title should be the visible text between the box and Delete"
+        )
+
+
+def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
+    """Case 4: no row has a button or button-type input showing Done or Undo."""
+    page = client.get("/").text
+    rows = rendered_list_items(page)
+    assert rows
+
+    for row in rows:
+        for button in buttons_in(row):
+            visible_word = button_text(button)
+            assert visible_word not in {"Done", "Undo"}
+        button_inputs = [
+            control
+            for control in input_controls_in(row)
+            if button_attributes(control).get("type", "").lower()
+            in {"button", "submit", "reset", "image"}
+        ]
+        for control in button_inputs:
+            visible_word = input_label(control)
+            assert visible_word not in {"Done", "Undo"}, (
+                f"a button-type input displaying {visible_word} should not appear in a row"
+            )
+
+
+def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
+    """Case 5: submitting an open row's rendered box answers 303 to /, ticks it, and lowers the count."""
+    todo = main.add("Wash the car")
+    assert remaining_count(client.get("/").text) == "5 left"
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    assert button_attributes(box_button).get("type") == "submit", (
+        "the box must be a submit control"
+    )
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
+
+    response = client.post(action, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert "&#9745;" in row
+    assert f"<s>{html.escape(todo.title)}</s>" in row
+    assert remaining_count(page) == "4 left"
+
+
+def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
+    """Case 6: submitting a done row's rendered box answers 303 to /, unticks it, and raises the count."""
+    todo = next(one for one in main.todos if one.done)
+    assert remaining_count(client.get("/").text) == "4 left"
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/undo")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    assert button_attributes(box_button).get("type") == "submit", (
+        "the box must be a submit control"
+    )
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/undo"
+
+    response = client.post(action, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert "&#9744;" in row
+    assert "<s>" not in row, "the reopened row should not be struck through"
+    row_forms = forms_in(row)
+    assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
+    assert remaining_count(page) == "5 left"
+
+
+def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -> None:
+    """Case 7: resubmitting a row's rendered box leaves the state that box named."""
+    open_todo = main.add("Wash the car")
+    done_todo = main.add("Post the letter")
+    done_todo.done = True
+    page = client.get("/").text
+
+    for todo, path, box_glyph, expected_done, result_glyph in (
+        (open_todo, f"/todos/{open_todo.id}/done", "☐", True, "&#9745;"),
+        (done_todo, f"/todos/{done_todo.id}/undo", "☑", False, "&#9744;"),
+    ):
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2
+        box_form = row_forms[0]
+        assert posts_to(box_form, path)
+        box_buttons = buttons_in(box_form)
+        assert len(box_buttons) == 1, "the box form should hold only the box button"
+        box_button = box_buttons[0]
+        assert button_attributes(box_button).get("type") == "submit", (
+            "the box must be a submit control"
+        )
+        assert button_text(box_button) == box_glyph
+        method, action = form_submission(box_form, box_button)
+        assert method == "post"
+        assert action == path
+
+        for _ in range(2):
+            response = client.post(action, follow_redirects=False)
+            assert response.status_code == 303
+            assert response.headers["location"] == "/"
+
+        assert todo.done == expected_done
+        result_row = rendered_item(client.get("/").text, todo.title)
+        assert result_glyph in result_row
+        if expected_done:
+            assert f"<s>{html.escape(todo.title)}</s>" in result_row
+        else:
+            assert "<s>" not in result_row
+
+
+def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
+    """Case 8: a title with <, & or " is escaped in the box label and the visible title.
+
+    Both states are checked: the label attribute must survive intact and decode back to the
+    title, and the row must show that title as text of its own, apart from the label.
+    """
+    todo = main.add('<b>bold & "quoted"</b>')
+
+    for done in (False, True):
+        todo.done = done
+        page = client.get("/").text
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2
+        action = "undo" if done else "done"
+        assert posts_to(row_forms[0], f"/todos/{todo.id}/{action}")
+        box_buttons = buttons_in(row_forms[0])
+        assert len(box_buttons) == 1
+        attributes = button_attributes(box_buttons[0])
+        label = attributes.get("aria-label")
+        assert label is not None, "the box should carry the title as its label"
+        assert html.unescape(label) == todo.title, (
+            "the label attribute should hold the escaped title intact"
+        )
+        assert html.escape(todo.title) in box_buttons[0]
+        assert todo.title not in page, "the raw title must not break the attribute or the text"
+        assert title_markup_between_forms(row, row_forms[0], row_forms[1]) == html.escape(
+            todo.title
+        ), "the row should display the escaped title as text, not only in the box label"
+
+
+def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
+    """Case 9: an empty list renders no boxes and still offers the Add form."""
+    main.todos.clear()
+
+    page = client.get("/").text
+
+    assert rendered_list_items(page) == []
+    assert not any(
+        button_attributes(button).get("role") == "checkbox" for button in buttons_in(page)
+    )
+    visible_box_buttons = [
+        button
+        for button in buttons_in(page)
+        if any(glyph in button_text(button) for glyph in ("\u2610", "\u2611"))
+    ]
+    assert visible_box_buttons == [], (
+        "the empty page should show no box button, even one missing its checkbox role"
+    )
+    input_controls = input_controls_in(page)
+    native_checkboxes = [
+        control
+        for control in input_controls
+        if button_attributes(control).get("type", "").lower() == "checkbox"
+    ]
+    assert native_checkboxes == [], "the empty page should show no native checkbox"
+    checkbox_inputs = [
+        control
+        for control in input_controls
+        if button_attributes(control).get("role", "").lower() == "checkbox"
+        or "aria-checked" in button_attributes(control)
+    ]
+    assert checkbox_inputs == [], (
+        "the empty page should show no input button claiming checkbox semantics"
+    )
+    glyph_inputs = [
+        control
+        for control in input_controls
+        if any(glyph in input_label(control) for glyph in ("\u2610", "\u2611"))
+    ]
+    assert glyph_inputs == [], (
+        "the empty page should show no input button displaying a box glyph"
+    )
+    add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
+    assert len(add_forms) == 1, "the empty page should still offer its Add form"
+    assert '<button type="submit">Add</button>' in add_forms[0]
+
+
+def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
+    """Case 10: a to-do added through the Add form renders a usable empty box.
+
+    The box must be a submit control whose visible text is the empty glyph, with checkbox
+    semantics, so a glyph tucked into an attribute or a button that cannot submit fails.
+    """
+    response = client.post("/todos", data={"title": "Fix the bike"}, follow_redirects=False)
+    assert response.status_code == 303
+    todo = next(one for one in main.todos if one.title == "Fix the bike")
+
+    row = rendered_item(client.get("/").text, todo.title)
+    assert remaining_count(client.get("/").text) == "5 left"
+    row_forms = forms_in(row)
+    assert len(row_forms) == 2
+    box_form = row_forms[0]
+    assert posts_to(box_form, f"/todos/{todo.id}/done")
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    box_button = box_buttons[0]
+    attributes = button_attributes(box_button)
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "\u2610", "the empty glyph must be the box's visible text"
+    assert attributes.get("role") == "checkbox"
+    assert attributes.get("aria-checked") == "false"
+    assert html.unescape(attributes.get("aria-label", "")) == todo.title
+
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
+    posted = client.post(action, follow_redirects=False)
+    assert posted.status_code == 303
+    assert posted.headers["location"] == "/"
+    assert todo.done
+    assert remaining_count(client.get("/").text) == "4 left"
+
+
+def test_case_2_page_styles_keep_a_done_title_struck_through() -> None:
+    """Case 2: the page styles keep a done row's title struck through."""
+    todo = next(one for one in main.todos if one.done)
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert_page_styles_keep_title_struck_through(page, row, todo.title)
+
+
+def test_case_5_page_styles_keep_a_newly_done_title_struck_through() -> None:
+    """Case 5: the page styles keep a title struck through once its open box is clicked."""
+    todo = main.add("Wash the car")
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    box_form = forms_in(row)[0]
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    method, action = form_submission(box_form, box_buttons[0])
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
+
+    response = client.post(action, follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert_page_styles_keep_title_struck_through(page, row, todo.title)
