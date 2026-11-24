@@ -1,3 +1,5 @@
+import html
+import re
 from collections.abc import Iterator
 
 import pytest
@@ -109,3 +111,181 @@ def test_an_unknown_todo_is_404() -> None:
 
     assert response.status_code == 404
     assert [one.done for one in main.todos] == before
+
+
+def test_undoing_a_done_todo_returns_it_to_open() -> None:
+    """Case 1: Undo answers 303 to /, clears ``done``, and the page shows it open again."""
+    todo = main.add("Wash the car")
+    todo.done = True
+
+    response = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not todo.done
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert html.escape(todo.title) in row
+    assert "<s>" not in row
+    assert '<button type="submit">Done</button>' in row
+    assert "Undo" not in row
+
+
+def test_undoing_raises_the_remaining_count_by_one() -> None:
+    """Case 2: unticking a done starter takes the page from 4 left to 5 left."""
+    done = next(one for one in main.todos if one.done)
+    assert remaining_count(client.get("/").text) == "4 left"
+
+    client.post(f"/todos/{done.id}/undo", follow_redirects=False)
+
+    assert remaining_count(client.get("/").text) == "5 left"
+
+
+def test_undoing_the_last_done_todo_leaves_one_left() -> None:
+    """Case 3: from Nothing left, unticking one to-do says 1 left."""
+    for todo in main.todos:
+        todo.done = True
+    target = main.todos[0]
+    assert remaining_count(client.get("/").text) == "Nothing left"
+
+    client.post(f"/todos/{target.id}/undo", follow_redirects=False)
+
+    assert remaining_count(client.get("/").text) == "1 left"
+
+
+def test_done_and_undo_round_trip() -> None:
+    """Case 4: done, undo, then done again returns the to-do to done."""
+    todo = main.add("Post the letter")
+
+    client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+    assert todo.done
+
+    client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+    assert not todo.done
+
+    client.post(f"/todos/{todo.id}/done", follow_redirects=False)
+    assert todo.done
+    assert f'action="/todos/{todo.id}/undo"' in client.get("/").text
+
+
+def test_undoing_an_open_todo_is_idempotent() -> None:
+    """Case 6: undoing a to-do that is already open changes nothing else."""
+    target = main.todos[1]
+    assert not target.done
+    before = [(one.id, one.title, one.done) for one in main.todos]
+    before_page = client.get("/").text
+
+    response = client.post(f"/todos/{target.id}/undo", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not target.done
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+    assert client.get("/").text == before_page
+
+
+def rendered_item(page: str, title: str) -> str:
+    """The one line of the page rendering the list item for ``title``."""
+    return next(line for line in page.splitlines() if html.escape(title) in line)
+
+
+def remaining_count(page: str) -> str:
+    """The text of the page's remaining-count paragraph."""
+    match = re.search(r'<p class="remaining">([^<]*)</p>', page)
+    assert match is not None, "the page should show its remaining count"
+    return match.group(1)
+
+
+def forms_in(fragment: str) -> list[str]:
+    """Each whole ``<form ...>...</form>`` in a page fragment, with its opening tag.
+
+    A button outside a form is therefore not found, and neither is a form's method lost.
+    """
+    return re.findall(r"<form\b[^>]*>.*?</form>", fragment, re.DOTALL)
+
+
+def form_attributes(form: str) -> dict[str, str]:
+    """The attributes on a form's opening tag, by their real names.
+
+    Parsing name/value pairs means ``data-method="post"`` is the attribute ``data-method``,
+    not the attribute ``method``.
+    """
+    opening = form[: form.index(">")]
+    pairs = re.findall(
+        r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))''',
+        opening,
+    )
+    return {name.lower(): double or single or bare for name, double, single, bare in pairs}
+
+
+def posts_to(form: str, path: str) -> bool:
+    """Whether ``form`` really posts to ``path``. A form with no method submits with GET."""
+    attributes = form_attributes(form)
+    return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
+
+
+def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
+    """Case 5: done items render an Undo form; open items render only their Done form."""
+    done = next(one for one in main.todos if one.done)
+    open_todo = next(one for one in main.todos if not one.done)
+    page = client.get("/").text
+
+    done_forms = forms_in(rendered_item(page, done.title))
+    assert len(done_forms) == 1, "a done to-do should offer exactly one action, Undo"
+    assert posts_to(done_forms[0], f"/todos/{done.id}/undo")
+    assert '<button type="submit">Undo</button>' in done_forms[0]
+
+    open_row = rendered_item(page, open_todo.title)
+    open_forms = forms_in(open_row)
+    assert len(open_forms) == 1, "an open to-do should offer exactly one action, Done"
+    assert posts_to(open_forms[0], f"/todos/{open_todo.id}/done")
+    assert '<button type="submit">Done</button>' in open_forms[0]
+    assert "Undo" not in open_row, "the whole open row should offer no Undo action"
+
+
+def test_undoing_an_unknown_todo_is_404() -> None:
+    """Case 7: an unknown id is 404 and changes nothing, including when the list is empty."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+    before_count = remaining_count(client.get("/").text)
+    unknown = max(one.id for one in main.todos) + 1
+
+    response = client.post(f"/todos/{unknown}/undo", follow_redirects=False)
+
+    assert response.status_code == 404
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+    assert remaining_count(client.get("/").text) == before_count
+
+    main.todos.clear()
+    empty_count = remaining_count(client.get("/").text)
+    response = client.post("/todos/1/undo", follow_redirects=False)
+    assert response.status_code == 404
+    assert main.todos == []
+    assert remaining_count(client.get("/").text) == empty_count
+
+
+def test_a_non_integer_undo_id_is_422() -> None:
+    """Case 8: /todos/not-an-int/undo is refused and leaves the to-dos unchanged."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+
+    response = client.post("/todos/not-an-int/undo", follow_redirects=False)
+
+    assert response.status_code == 422
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+
+def test_unticking_a_title_keeps_it_escaped() -> None:
+    """Case 9: Undo reopens the item and its open row still shows the escaped title."""
+    todo = main.add("<b>bold</b>")
+    todo.done = True
+
+    response = client.post(f"/todos/{todo.id}/undo", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert not todo.done, "Undo should reopen the to-do, not leave it done"
+    page = client.get("/").text
+    row = rendered_item(page, todo.title)
+    assert html.escape(todo.title) in row
+    assert "<b>bold</b>" not in page
+    assert "<s>" not in row, "the reopened row should not be struck through"
+    assert '<button type="submit">Done</button>' in row
