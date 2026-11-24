@@ -879,6 +879,20 @@ def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
     assert not any(
         button_attributes(button).get("role") == "checkbox" for button in buttons_in(page)
     )
+    visible_box_buttons = [
+        button
+        for button in buttons_in(page)
+        if any(glyph in button_text(button) for glyph in ("\u2610", "\u2611"))
+    ]
+    assert visible_box_buttons == [], (
+        "the empty page should show no box button, even one missing its checkbox role"
+    )
+    native_checkboxes = [
+        control
+        for control in re.findall(r"<input\b[^>]*>", page, re.IGNORECASE)
+        if button_attributes(control).get("type", "").lower() == "checkbox"
+    ]
+    assert native_checkboxes == [], "the empty page should show no native checkbox"
     add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
     assert len(add_forms) == 1, "the empty page should still offer its Add form"
     assert '<button type="submit">Add</button>' in add_forms[0]
