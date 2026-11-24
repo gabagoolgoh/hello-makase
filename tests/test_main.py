@@ -146,11 +146,11 @@ def test_undoing_the_last_done_todo_leaves_one_left() -> None:
     for todo in main.todos:
         todo.done = True
     target = main.todos[0]
-    assert "Nothing left" in client.get("/").text
+    assert remaining_count(client.get("/").text) == "Nothing left"
 
     client.post(f"/todos/{target.id}/undo", follow_redirects=False)
 
-    assert "1 left" in client.get("/").text
+    assert remaining_count(client.get("/").text) == "1 left"
 
 
 def test_done_and_undo_round_trip() -> None:
