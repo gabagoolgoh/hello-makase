@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tasks 005: Tick a to-do with a checkbox</title>
-  <meta name="makase-status" content="Proposed">
+  <meta name="makase-status" content="Complete">
   <meta name="makase-type" content="code">
   <meta name="makase-id" content="005">
   <meta name="makase-depends-on" content="">
@@ -17,9 +17,12 @@
   <h1>Tasks 005: Tick a to-do with a checkbox</h1>
 
   <dl class="meta">
-    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
     <dt>Spec</dt><dd><a href="spec.html">Tick a to-do with a checkbox</a></dd>
   </dl>
+
+  <h2>What shipped</h2>
+  <p>Each to-do row now starts with a checkbox-style box&mdash;empty for an open to-do and ticked for a done one&mdash;whose submit posts to the existing <code>/done</code> or <code>/undo</code> route, replacing the Done and Undo buttons while the title, Delete, remaining count, order and routes stay as they were.</p>
 
 <table class="groups">
   <tr><td>A</td><td>Turn each to-do row's Done or Undo button into a checkbox-style box that posts to the state it sets</td></tr>
