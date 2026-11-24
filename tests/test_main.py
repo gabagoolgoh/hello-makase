@@ -133,7 +133,8 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     box_buttons = buttons_in(row_forms[0])
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
-    assert "&#9744;" in box_buttons[0]
+    assert box_attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_buttons[0]) == "☐"
     assert box_attributes.get("role") == "checkbox"
     assert box_attributes.get("aria-checked") == "false"
     assert box_attributes.get("aria-label") == todo.title
@@ -533,6 +534,11 @@ def button_attributes(button: str) -> dict[str, str]:
     return {name.lower(): double or single or bare for name, double, single, bare in pairs}
 
 
+def button_text(button: str) -> str:
+    """The visible text of a button, with tags stripped and entities decoded."""
+    return html.unescape(re.sub(r"<[^>]+>", "", button)).strip()
+
+
 def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     """Spec 003 case 5 and spec 004 case 4: every row renders its own two actions.
 
@@ -567,6 +573,9 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         assert len(box_buttons) == 1
         box_attributes = button_attributes(box_buttons[0])
         assert expected_glyph in box_buttons[0]
+        if not todo.done:
+            assert box_attributes.get("type") == "submit", "an open row's box must be a submit control"
+            assert button_text(box_buttons[0]) == "☐"
         assert box_attributes.get("role") == "checkbox"
         assert box_attributes.get("aria-checked") == expected_checked
         assert box_attributes.get("aria-label") == todo.title
@@ -629,7 +638,8 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     box_buttons = buttons_in(row_forms[0])
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
-    assert "&#9744;" in box_buttons[0]
+    assert box_attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_buttons[0]) == "☐"
     assert box_attributes.get("role") == "checkbox"
     assert box_attributes.get("aria-checked") == "false"
     assert box_attributes.get("aria-label") == html.escape(todo.title)
@@ -650,7 +660,8 @@ def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
     assert len(box_buttons) == 1, "the box form should hold only the box button"
     box_button = box_buttons[0]
     attributes = button_attributes(box_button)
-    assert "&#9744;" in box_button
+    assert attributes.get("type") == "submit", "the box must be a submit control"
+    assert button_text(box_button) == "☐"
     assert attributes.get("role") == "checkbox"
     assert attributes.get("aria-checked") == "false"
     assert attributes.get("aria-label") == todo.title
