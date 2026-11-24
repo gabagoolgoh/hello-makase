@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 002: Show how many are left</title>
+  <meta name="makase-status" content="Complete">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="002">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 002: Show how many are left</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Show how many are left</a></dd>
+  </dl>
+
+  <h2>What shipped</h2>
+  <p>The to-do page now shows a line under the heading with how many to-dos are still not done, as <code>4 left</code>, <code>1 left</code>, or <code>Nothing left</code>, counted from the model's existing <code>done</code> flag and rendered on the server.</p>
+
+<table class="groups">
+  <tr><td>A</td><td>Show how many to-dos are left under the heading</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☑ <strong>A1. <code>tests/test_main.py</code>: tests that the page shows the count of the starter to-dos that are not done, that adding one raises the count by one, and that with every to-do done it says <q>Nothing left</q>.</strong><br>✓ <code>uv run pytest tests/test_main.py -k 'counts_the_todos or raises_the_count or one_left or nothing_left'</code>: the four new tests failed before the count was rendered, as expected. Also covers <q>1 left</q> for a single remaining to-do.</li>
+  <li data-group="A">☑ <strong>A2. <code>app/main.py</code>: render a line under the heading with the number of to-dos whose <code>done</code> flag is not set, as <q>N left</q>, <q>1 left</q> for one, and <q>Nothing left</q> for none.</strong><br>✓ <code>uv run pytest tests/test_main.py</code>: 11 passed, including the four new count tests. The count is rendered server-side as <code>&lt;p class="remaining"&gt;</code> directly under the heading.</li>
+</ol>
+
+</main>
+</body>
+</html>
