@@ -1,0 +1,1087 @@
+/* makase spec docs — shared stylesheet.
+   Every doc under specs/ links this with a relative href.
+   Light/dark aware, printable, no external resources.
+
+   Type is a serif display face over a system sans body, with mono reserved for
+   labels and data. The serif comes from the platform (ui-serif is New York on
+   Apple, Charter/Georgia elsewhere) rather than a webfont, so docs render the
+   same from disk, offline and on paper. */
+
+:root {
+  color-scheme: light; /* The browser's own scrollbars and native controls follow the theme; nothing here draws one (item 238). */
+  --bg: #f8f4ec;
+  --surface: #f0eadd;
+  --surface-alt: #e6dece;
+  --text: #26211b;
+  --text-dim: #5f574b;
+  --border: #dcd2c0;
+  --rule-strong: #b9ad98;
+  --accent: #2e6a4a;
+  --accent-ink: #22553a;
+  --accent-soft: #e3ece2;
+  --ok: #3b733c;
+  --ok-soft: #e1ecd9;
+  --warn: #7a5810;
+  --warn-soft: #f3e6c9;
+  --stop: #a8402c;
+  --stop-soft: #f5e0d8;
+
+  /* The owl's copper and its light (spec 074). --spark is decoration, never a status:
+     amber still means needs you and red still means broken. --shadow is the one
+     drop-shadow colour, so no stylesheet writes rgb() of its own. */
+  --spark: #b4562a;
+  --spark-soft: #f5e1d3;
+  --glint: rgb(255 255 255 / 0.7);
+  --shadow: rgb(38 33 27 / 0.12);
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Inter, sans-serif;
+  --serif: ui-serif, "New York", "Iowan Old Style", Charter, "Bitstream Charter",
+           "Palatino Linotype", Georgia, serif;
+
+  /* Data-viz roles for inline SVG charts. The died/survived pair is validated
+     for colour-vision separation and for contrast against --surface in both
+     modes (worst-pair CVD dE 23.8 light / 19.2 dark); --viz-series-soft is the
+     ordinal second step, validated against --surface too. Outcome is always
+     carried by mark shape and a direct label as well, never by hue alone. */
+  --viz-series: #2a78d6;
+  --viz-series-soft: #68a2e8;
+  --viz-dead: #d03b3b;
+  --viz-alive: #2a78d6;
+  --viz-muted: #858279;
+  --viz-grid: #dcd2c0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark; /* The browser's own scrollbars and native controls follow the theme; nothing here draws one (item 238). */
+    --bg: #171411;
+    --surface: #201c18;
+    --surface-alt: #2a251f;
+    --text: #ede6da;
+    --text-dim: #aa9f8e;
+    --border: #352f27;
+    --rule-strong: #51493d;
+    --accent: #7cbf94;
+    --accent-ink: #98d0ab;
+    --accent-soft: #1b271f;
+    --ok: #93c897;
+    --ok-soft: #1f3021;
+    --warn: #dbb661;
+    --warn-soft: #382d15;
+    --stop: #e8917e;
+    --stop-soft: #3e231d;
+    --spark: #e8895a;
+    --spark-soft: #3b251a;
+    --glint: rgb(255 255 255 / 0.4);
+    --shadow: rgb(0 0 0 / 0.5);
+
+    --viz-series: #3987e5;
+    --viz-series-soft: #256abf;
+    --viz-dead: #e66767;
+    --viz-alive: #3987e5;
+    --viz-grid: #352f27;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark; /* The browser's own scrollbars and native controls follow the theme; nothing here draws one (item 238). */
+  --bg: #171411;
+  --surface: #201c18;
+  --surface-alt: #2a251f;
+  --text: #ede6da;
+  --text-dim: #aa9f8e;
+  --border: #352f27;
+  --rule-strong: #51493d;
+  --accent: #7cbf94;
+  --accent-ink: #98d0ab;
+  --accent-soft: #1b271f;
+  --ok: #93c897;
+  --ok-soft: #1f3021;
+  --warn: #dbb661;
+  --warn-soft: #382d15;
+  --stop: #e8917e;
+  --stop-soft: #3e231d;
+  --spark: #e8895a;
+  --spark-soft: #3b251a;
+  --glint: rgb(255 255 255 / 0.4);
+  --shadow: rgb(0 0 0 / 0.5);
+
+  --viz-series: #3987e5;
+  --viz-series-soft: #256abf;
+  --viz-dead: #e66767;
+  --viz-alive: #3987e5;
+  --viz-grid: #352f27;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 3.5rem 1.5rem 6rem;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 var(--sans);
+  -webkit-text-size-adjust: 100%;
+}
+
+main, .doc { max-width: 50rem; margin: 0 auto; }
+
+/* ---- Typography ---------------------------------------------------------- */
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  text-wrap: balance;
+}
+h1 { font-size: 2.55rem; margin: 0 0 0.4rem; line-height: 1.05; }
+h2 {
+  font-size: 1.7rem;
+  margin: 3.2rem 0 1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+}
+h3 { font-size: 1.25rem; margin: 2.2rem 0 0.5rem; font-weight: 600; }
+h4 {
+  font-size: 0.95rem;
+  font-weight: 620;
+  line-height: 1.3;
+  margin: 1.5rem 0 0.4rem;
+  color: var(--text);
+}
+
+p { margin: 0 0 1rem; max-width: 44rem; }
+li { margin: 0.35rem 0; max-width: 43rem; }
+p, li { color: var(--text); }
+em { font-style: italic; }
+
+a {
+  color: var(--accent-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.subtitle {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  max-width: 40rem;
+  margin: 0 0 1.75rem;
+  text-wrap: balance;
+}
+
+/* Small mono label. Sits above a heading or opens a card. */
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 550;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+/* ---- Document header: title + metadata ----------------------------------- */
+
+.meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.45rem 1rem;
+  align-items: baseline;
+  margin: 0 0 2rem;
+  padding: 1rem 1.15rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.88rem;
+}
+.meta dt {
+  margin: 0;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.meta dd { margin: 0; }
+
+.badge {
+  display: inline-block;
+  padding: 0.12rem 0.6rem 0.16rem;
+  border-radius: 999px;
+  font: 600 0.72rem/1.5 var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text-dim);
+}
+.badge.proposed { border-color: transparent; background: var(--warn-soft); color: var(--warn); }
+.badge.approved { border-color: transparent; background: var(--ok-soft);   color: var(--ok); }
+.badge.complete { border-color: transparent; background: var(--ok); color: var(--bg); }
+.badge.blocked  { border-color: transparent; background: var(--stop-soft); color: var(--stop); }
+/* Terminal, and deliberately the quietest of the five: an abandoned item has
+   left the board and is not asking for anything (ADR 006). */
+.badge.abandoned { border-color: var(--border); background: transparent; color: var(--text-dim); text-decoration: line-through; }
+
+/* Inline status pill, for use inside table cells. */
+.chip {
+  display: inline-block;
+  padding: 0.08rem 0.5rem 0.12rem;
+  border-radius: 3px;
+  font: 600 0.68rem/1.5 var(--mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: var(--surface-alt);
+  color: var(--text-dim);
+}
+.chip.ok   { background: var(--ok-soft);   color: var(--ok); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.stop { background: var(--stop-soft); color: var(--stop); }
+
+/* ---- Tables -------------------------------------------------------------- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.4rem 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+.scroll-x { overflow-x: auto; margin: 1.4rem 0; }
+.scroll-x table { margin: 0; min-width: 34rem; }
+th, td {
+  text-align: left;
+  padding: 0.55rem 0.8rem 0.55rem 0;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+th {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+  border-bottom: 2px solid var(--rule-strong);
+}
+tbody tr:hover { background: var(--surface); }
+td.num { font-variant-numeric: tabular-nums; }
+
+/* ---- Code ---------------------------------------------------------------- */
+
+code {
+  font: 0.86em var(--mono);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.08em 0.35em;
+}
+pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+pre code { background: none; border: none; padding: 0; }
+
+/* ---- Callouts and quotes ------------------------------------------------- */
+
+.note, .warn-box, .verdict {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 0.9rem 1.1rem;
+  border-radius: 0 6px 6px 0;
+  margin: 1.4rem 0;
+  font-size: 0.94rem;
+  max-width: 45rem;
+}
+.note > :last-child, .warn-box > :last-child, .verdict > :last-child { margin-bottom: 0; }
+.warn-box { border-left-color: var(--warn); background: var(--warn-soft); }
+.verdict {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 6px;
+  padding: 1.2rem 1.4rem;
+  font-size: 1rem;
+}
+
+blockquote {
+  margin: 1.6rem 0;
+  padding: 1.1rem 1.3rem;
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  max-width: 44rem;
+}
+blockquote p {
+  font-family: var(--serif);
+  font-size: 1.18rem;
+  line-height: 1.45;
+  margin: 0 0 0.5rem;
+}
+blockquote > :last-child { margin-bottom: 0; }
+blockquote cite {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+}
+
+/* Boxed lead summary — the "read this if nothing else" block. */
+.tldr {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.3rem 1.5rem 1rem;
+  margin: 0 0 2rem;
+}
+.tldr ol, .tldr ul { margin: 0; padding-left: 1.2rem; }
+.tldr li { margin-bottom: 0.7rem; padding-left: 0.2rem; }
+.tldr li::marker { font-family: var(--mono); font-size: 0.85em; font-weight: 600; color: var(--accent); }
+
+/* ---- Decision list — the load-bearing section of every spec -------------- */
+
+ol.decisions { padding-left: 1.2rem; }
+ol.decisions > li { margin: 0.8rem 0; }
+ol.decisions strong { color: var(--accent-ink); }
+
+/* ---- Card grid, for rosters and option comparisons ----------------------- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.9rem;
+  margin: 1.4rem 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1rem 1.1rem;
+}
+.card h4 { margin-top: 0; }
+.card p { margin: 0.35rem 0 0; font-size: 0.9rem; color: var(--text-dim); }
+
+/* ---- Diagrams and screenshots -------------------------------------------- */
+
+figure { margin: 1.75rem 0; }
+figure svg { max-width: 100%; height: auto; display: block; }
+figure img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff; /* screenshots are usually light-mode; keep transparent PNGs legible in dark theme */
+}
+figcaption {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  margin-top: 0.6rem;
+  text-align: center;
+  max-width: 44rem;
+}
+
+/* ---- Inline SVG charts --------------------------------------------------- */
+
+figure.chart {
+  margin: 2.25rem 0;
+  padding: 1.2rem 1.3rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+figure.chart .chart-title {
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 620;
+  line-height: 1.25;
+  text-wrap: balance;
+  margin: 0 0 0.25rem;
+}
+figure.chart .chart-sub {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--text-dim);
+  margin: 0 0 1rem;
+  max-width: 40rem;
+}
+figure.chart .chart-scroll { overflow-x: auto; }
+figure.chart .chart-scroll svg { min-width: 33rem; }
+figure.chart svg { display: block; }
+figure.chart svg text { font-family: var(--sans); fill: var(--text-dim); }
+figure.chart svg .lbl-ink { fill: var(--text); }
+figure.chart svg .lbl-val { fill: var(--text); font-variant-numeric: tabular-nums; }
+figure.chart svg .axis-line,
+figure.chart svg .grid-line { stroke: var(--viz-grid); stroke-width: 1; }
+figure.chart figcaption { text-align: left; margin-top: 0.9rem; }
+
+/* Chart legend — shape + colour + word, so identity is never colour alone */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.2rem;
+  margin: 0 0 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  color: var(--text-dim);
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+
+/* Table-view twin for every chart */
+figure.chart details { margin-top: 0.9rem; }
+figure.chart details summary {
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0.15rem 0;
+}
+figure.chart details summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+figure.chart details table { font-size: 0.85rem; margin: 0.6rem 0 0.2rem; }
+
+/* ---- UI mockups ----------------------------------------------------------
+   Board and card mockups, for UI workshop docs only — never drawn in a spec's
+   own prose. A spec carries at most two pictures, both placed by makase and
+   neither drawn by its writer: the look its brainstorm picked
+   (iframe.look-frame, "The picked look") and the diagram it drew
+   (iframe.diagram-frame, "The drawn diagram").
+   App-flavoured rather than document-flavoured: denser type, its own
+   two-step surface stack, and a full-bleed frame so a five-lane board is
+   legible at the doc's 50rem column width. Cards sit *above* the board
+   surface in both themes, which is what makes lanes read as physical space.
+
+     .mock          full-bleed framed viewport (.mock.inline stays in-column)
+       .mock-top    fake app bar: .mock-brand, .mock-pill (+.attn / +.run),
+                    .mock-right pushes the rest of the bar right
+       .mock-board  lane strip; width via .cols-2 … .cols-6
+       .mock-lane   one lane: .mock-lane-head > .dot (+.run/.ok/.attn), .ct
+       .mock-rail   the needs-you rail: .mock-rail-items (it carries no header
+                    of its own — the .mock-pill in .mock-top names it);
+                    arrangements +.stacked (row-form cards two to a line; a card
+                    takes .row > .mock-body + .mock-acts, and drops to one column
+                    under 46rem), +.side (left column, wrapped with
+                    the board in .mock-split), +.dense (.mock-line > .l-id
+                    .l-title .l-say .l-verb)
+       .mock-more   "12 earlier" cap line at the foot of a lane
+       .mock-strip  collapsed pipeline strip: .mock-seg (+.attn: holds one of
+                    your queued items) > .lbl + .n
+       .mock-col    centred single-column stack, for inbox-shaped layouts
+       .mock-desk   brainstorm surface: .mock-chat beside .mock-batch (drafts)
+                    or .mock-thread (margin conversation); +.doc-first swaps
+                    which of the two is wide. .mock-chat holds .mock-turn
+                    (+.me) > .mock-who + prose, .mock-work for named work in
+                    progress, and .mock-compose as the input line
+     .mock-card     work item; modifiers .attn .running .blocked .done .ghost
+                    (+.queued: ghost the rail is holding, amber outline),
+                    .lg (detail-sized) — plus .mock-id, .mock-title,
+                    .mock-say, .mock-btn (+.ghost), .mock-chips,
+                    .mock-meter (width via .p15 … .p90; a second <i> is the
+                    half-step task under test), .mock-dots (verification
+                    attempts: <i>, <i class="now">, <i class="todo">);
+                    +.draft is a proposed item with no number yet — it adds
+                    .mock-claim and .mock-pin (+.on) and takes .dropped when
+                    the idea was argued down
+     .mock-q        a decision (the grill-me): .mock-q is the question,
+                    .mock-why what answering it unblocks, .mock-opts >
+                    .mock-opt (+.free: the escape valve) > .o-label + .o-say
+                    + .o-cost, .mock-pre for a quoted diagram, hunk or failing
+                    assertion, .mock-rec for the recommendation line, and
+                    .mock-steps (<i>, <i class="now">, <i class="todo">) for
+                    where you are in a round of them
+     .mock-lead     the item page (the surface behind a card): .mock-lead is
+                    the account in the display face, .mock-spine the five
+                    phases (div +.done/.now/.attn > .ph + .st + .sub),
+                    .mock-doc one of the item's documents as a link out
+                    (+.pending: not written yet) > .d-name + .d-say + .d-st,
+                    .mock-facts the accounting strip (div > .f-k + .f-v), and
+                    .mock-ev one entry of a chronological account (+.stop)
+     .mock-cap      caption paragraph, placed after the frame in doc flow
+
+   Colour discipline: amber (--warn) means "we need you" — filled where you act
+   on it, outline-only where the card is merely pointing at it — red (--stop)
+   means "we need you and something broke", and everything else is the neutral
+   surface stack. Nothing on a mockup gets a colour for decoration. */
+
+.mock {
+  --board-bg: var(--surface);
+  --board-card: var(--bg);
+  /* 100vw includes the scrollbar, so leave more than body's 1.5rem padding. */
+  width: min(72rem, calc(100vw - 4.5rem));
+  margin-left: 50%;
+  transform: translateX(-50%);
+  margin-top: 1.9rem;
+  margin-bottom: 0.75rem;
+  background: var(--board-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8rem 0.85rem 0.9rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+.mock.inline { width: auto; margin-left: 0; transform: none; }
+/* Inline code inside a mockup is app chrome, not document chrome: an app would
+   render a header name in mono, not in a bordered chip. */
+.mock code { border: none; background: none; padding: 0; font-size: 0.92em; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .mock { --board-bg: var(--bg); --board-card: var(--surface); }
+}
+:root[data-theme="dark"] .mock { --board-bg: var(--bg); --board-card: var(--surface); }
+
+.mock-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  padding-bottom: 0.6rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+.mock-brand { font-family: var(--serif); font-size: 1rem; font-weight: 650; letter-spacing: -0.01em; }
+.mock-right { margin-left: auto; }
+
+.mock-pill {
+  font: 600 0.62rem/1.6 var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  padding: 0.05rem 0.5rem 0.09rem;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.mock-pill.attn { background: var(--warn-soft); color: var(--warn); font-weight: 700; }
+.mock-pill.run  { background: var(--accent-soft); color: var(--accent); }
+
+.mock-board { display: grid; gap: 0.55rem; align-items: start; }
+.mock-board.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mock-board.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mock-board.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.mock-board.cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.mock-board.cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+.mock-lane-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font: 600 0.62rem/1.6 var(--mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding: 0 0.15rem 0.4rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+.mock-lane-head .dot { width: 0.42rem; height: 0.42rem; border-radius: 999px; background: var(--text-dim); flex: none; }
+.mock-lane-head .dot.run  { background: var(--accent); }
+.mock-lane-head .dot.ok   { background: var(--ok); }
+.mock-lane-head .dot.attn { background: var(--warn); }
+.mock-lane-head .ct {
+  margin-left: auto;
+  background: var(--surface-alt);
+  border-radius: 999px;
+  padding: 0 0.35rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.mock-card {
+  background: var(--board-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem 0.55rem;
+  margin-bottom: 0.45rem;
+}
+.mock-card:last-child { margin-bottom: 0; }
+.mock-card.running { box-shadow: inset 3px 0 0 var(--accent); }
+.mock-card.blocked { box-shadow: inset 3px 0 0 var(--stop); }
+.mock-card.attn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  box-shadow: inset 3px 0 0 var(--warn);
+}
+/* Red variant of the needs-you treatment: we need you *and* something broke. */
+.mock-card.attn.stop {
+  background: var(--stop-soft);
+  border-color: var(--stop);
+  box-shadow: inset 3px 0 0 var(--stop);
+}
+.mock-card.done .mock-title { text-decoration: line-through; color: var(--text-dim); }
+.mock-card.ghost { background: none; border-style: dashed; box-shadow: none; opacity: 0.55; }
+/* Ghost whose escalation is being held by the rail. Dashed *amber* outline, so the
+   board shows which items the rail took — outline only: the amber fill, the inset
+   bar and the gate button stay in the rail, which is what keeps acting on an item
+   a single place on the screen. Plain .ghost (blocked) stays uncoloured. */
+.mock-card.ghost.queued { border-color: var(--warn); opacity: 0.85; }
+.mock-card.ghost.queued .mock-say { color: var(--warn); }
+.mock-card.ghost.queued.stop { border-color: var(--stop); }
+.mock-card.ghost.queued.stop .mock-say { color: var(--stop); }
+.mock-card.lg { padding: 0.85rem 0.95rem 0.9rem; }
+
+.mock-id {
+  font: 600 0.6rem/1.5 var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.12rem;
+}
+.mock-title {
+  font-family: var(--serif);
+  font-size: 0.9rem;
+  font-weight: 620;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  margin: 0 0 0.2rem;
+  color: var(--text);
+}
+.mock-card.lg .mock-title { font-size: 1.15rem; }
+.mock-say { font-size: 0.7rem; line-height: 1.4; color: var(--text-dim); margin: 0; }
+.mock-say .live { color: var(--accent); }
+.mock-say strong { color: var(--text); font-weight: 600; }
+.mock-card.lg .mock-say { font-size: 0.82rem; }
+
+.mock-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.22rem 0.6rem 0.26rem;
+  font: 650 0.67rem/1.4 var(--sans);
+}
+.mock-btn.ghost { background: none; border-color: var(--border); color: var(--accent-ink); }
+
+.mock-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.6rem;
+  margin-top: 0.45rem;
+  font: 0.6rem/1.5 var(--mono);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+.mock-meter {
+  display: flex;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--surface-alt);
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+.mock-meter > i { display: block; height: 100%; background: var(--accent); }
+.mock-meter.p15 > i:first-child { width: 15%; }
+.mock-meter.p25 > i:first-child { width: 25%; }
+.mock-meter.p40 > i:first-child { width: 40%; }
+.mock-meter.p60 > i:first-child { width: 60%; }
+.mock-meter.p75 > i:first-child { width: 75%; }
+.mock-meter.p90 > i:first-child { width: 90%; }
+/* A second segment is the half-step: the task whose code is written and whose
+   tests are running. Half weight, because it is half a step and the suite's
+   own progress is deliberately not claimed. */
+.mock-meter > i + i { width: 6%; opacity: 0.45; }
+
+/* Verification attempts. Filled = a failed run, accent = the run happening now,
+   outline = budget still unspent. Reads as struggle without needing motion. */
+.mock-dots { display: inline-flex; align-items: center; gap: 0.22rem; }
+.mock-dots i { display: block; width: 0.38rem; height: 0.38rem; border-radius: 999px; background: var(--stop); }
+.mock-dots i.now { background: var(--accent); }
+.mock-dots i.todo { background: none; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+
+.mock-rail {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: 6px;
+  padding: 0.55rem 0.6rem 0.6rem;
+  margin-bottom: 0.8rem;
+}
+.mock-rail-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.5rem; }
+.mock-rail-items .mock-card { margin-bottom: 0; }
+
+/* Rail arrangements. These change where the queue sits and how one item is laid
+   out — never the treatment: filled amber and the gate buttons stay inside the
+   rail in every one of them. .stacked = one full-width row per item; .side = the
+   rail as a left column beside the board (wrap both in .mock-split); .dense =
+   one line per item with the top one open. */
+/* Two row-form cards to a line: reading order stays list-like (across, then
+   down) while the rail costs half the height a single column would. The column
+   count is fixed, so unlike the default grid a longer queue never narrows the
+   sentence — it only adds rows. */
+.mock-rail.stacked .mock-rail-items { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.mock-split { display: flex; gap: 0.7rem; align-items: flex-start; }
+.mock-split > .mock-rail { width: 15.5rem; flex: none; margin-bottom: 0; }
+.mock-split > .mock-rail .mock-rail-items { grid-template-columns: 1fr; }
+.mock-split > .mock-board { flex: 1; min-width: 0; }
+
+/* One item as a row: text left, verbs stacked right. */
+.mock-card.row { display: flex; align-items: flex-start; gap: 0.9rem; }
+.mock-card.row .mock-body { flex: 1; min-width: 0; }
+.mock-card.row .mock-acts { flex: none; display: flex; flex-direction: column; gap: 0.3rem; width: 8.75rem; }
+.mock-card.row .mock-acts .mock-btn { margin-top: 0; text-align: center; }
+
+/* Dense queue: .mock-line rows, .l-id + .l-title + .l-say + .l-verb. */
+.mock-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.32rem 0.1rem;
+  border-top: 1px solid var(--border);
+}
+.mock-line:first-child { border-top: none; }
+.mock-line .l-id {
+  flex: none;
+  font: 600 0.6rem/1.5 var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.mock-line .l-title { font-family: var(--serif); font-size: 0.92rem; font-weight: 600; flex: none; }
+.mock-line .l-say {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mock-line .l-verb {
+  flex: none;
+  font: 650 0.62rem/1.5 var(--mono);
+  letter-spacing: 0.06em;
+  color: var(--accent-ink);
+}
+.mock-line.stop .l-verb { color: var(--stop); }
+
+/* "12 earlier" — the Done lane's cap, which unmerged items are exempt from. */
+.mock-more {
+  padding: 0.4rem 0.15rem 0;
+  font: 600 0.6rem/1.5 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.mock-strip { display: flex; gap: 0.4rem; }
+.mock-seg {
+  flex: 1;
+  background: var(--board-card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.35rem 0.5rem 0.4rem;
+}
+.mock-seg .lbl {
+  display: block;
+  font: 600 0.58rem/1.5 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.mock-seg .n { font-family: var(--serif); font-size: 1.1rem; font-weight: 650; }
+/* Segment holding one of your queued items — the same outline-only pointer as
+   .ghost.queued: it says where in the pipeline your queue sits, it is not the
+   place you act on it. */
+.mock-seg.attn { border-color: var(--warn); }
+.mock-seg.attn .lbl { color: var(--warn); }
+
+.mock-col { max-width: 33rem; margin: 0 auto; }
+
+/* Brainstorm surface. The one screen in makase where a conversation is the
+   medium — so it is deliberately *not* styled like a chat client: no bubbles,
+   no avatars, no alignment flip. A turn is a labelled block of prose, which is
+   what a memo thread looks like, and it keeps the "borrow the paper, not the
+   chrome" rule the board mockups follow. */
+.mock-desk { display: flex; gap: 0.8rem; align-items: flex-start; }
+.mock-desk > .mock-chat { flex: 1; min-width: 0; }
+.mock-desk > .mock-batch,
+.mock-desk > .mock-thread { width: 17.5rem; flex: none; }
+/* Document-first: the batch is the page, the conversation is a margin. */
+.mock-desk.doc-first > .mock-batch { flex: 1; width: auto; }
+.mock-desk.doc-first > .mock-thread { width: 14.5rem; }
+
+.mock-turn { margin-bottom: 0.75rem; }
+.mock-turn:last-child { margin-bottom: 0; }
+.mock-who {
+  display: block;
+  font: 600 0.6rem/1.5 var(--mono);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.15rem;
+}
+.mock-turn p { font-size: 0.74rem; line-height: 1.5; margin: 0 0 0.35rem; color: var(--text); }
+.mock-turn p:last-child { margin-bottom: 0; }
+.mock-turn ul { margin: 0.2rem 0 0.35rem; padding-left: 1rem; font-size: 0.74rem; line-height: 1.5; }
+.mock-turn li { margin-bottom: 0.15rem; }
+/* Your own turns: pulled in behind a rule rather than flipped to the right, so
+   the transcript still reads as one column of prose. */
+.mock-turn.me { border-left: 2px solid var(--rule-strong); padding-left: 0.6rem; }
+.mock-turn.me p { color: var(--text-dim); }
+
+/* makase doing something that takes minutes — reading the repo, researching.
+   Named work, and never a spinner instead of a meter: the same claim discipline the
+   board's cards use. */
+.mock-work {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: 0.68rem/1.5 var(--sans);
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+.mock-work .mock-meter { flex: 1; margin-top: 0; }
+
+.mock-compose {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--board-card);
+  padding: 0.45rem 0.55rem 0.5rem;
+  margin-top: 0.7rem;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+}
+
+/* A proposed item, before main has allocated its number. Same card as the
+   board's, minus the id line and any live state — a draft has no situation
+   yet, so it gets no lane treatment and no colour. */
+.mock-card.draft:not(.lg) .mock-title { font-size: 0.95rem; }
+.mock-card.draft.dropped { opacity: 0.6; }
+.mock-card.draft.dropped .mock-title { text-decoration: line-through; color: var(--text-dim); }
+.mock-claim {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+}
+.mock-claim b { font: 600 0.58rem/1.5 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; color: var(--text-dim); }
+/* The merge pin, set in the same act as the approval — ADR 003. Off is the
+   default and looks it. */
+.mock-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.45rem;
+  font: 0.65rem/1.5 var(--sans);
+  color: var(--text-dim);
+}
+.mock-pin i { width: 1.5rem; height: 0.78rem; border-radius: 999px; background: var(--surface-alt); box-shadow: inset 0 0 0 1px var(--rule-strong); flex: none; }
+.mock-pin.on { color: var(--accent-ink); }
+.mock-pin.on i { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+
+/* A decision, rendered — the grill-me interaction. Question, two to four
+   options each carrying the trade-off it accepts, and a recommendation that is
+   a *line under the options* rather than a highlighted one: a highlighted
+   option is a default, and a default is a click. Sits inside a .mock-card, and
+   inherits that card's treatment — amber in the rail, red when something
+   broke. No colour of its own. */
+.mock-q {
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  font-weight: 620;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  margin: 0 0 0.25rem;
+  color: var(--text);
+}
+.mock-why { font-size: 0.7rem; line-height: 1.45; color: var(--text-dim); margin: 0 0 0.6rem; }
+
+.mock-opts { display: grid; gap: 0.4rem; }
+.mock-opt {
+  background: var(--board-bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.42rem 0.55rem 0.48rem;
+}
+/* The escape valve — "none of these, here is what I want" — is an option that
+   looks like a lesser one. It exists, and every use of it is a defect report
+   about the three above it. */
+.mock-opt.free { border-style: dashed; }
+.mock-opt .o-label { display: block; font: 650 0.75rem/1.35 var(--sans); color: var(--text); }
+.mock-opt .o-say { display: block; font-size: 0.7rem; line-height: 1.45; color: var(--text-dim); margin-top: 0.1rem; }
+.mock-opt .o-cost { display: block; margin-top: 0.28rem; font: 0.6rem/1.5 var(--mono); letter-spacing: 0.04em; color: var(--text-dim); }
+.mock-opt .o-cost b { font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+
+/* Quoted machine text: an ASCII diagram, a conflict hunk, the assertion that
+   failed. Verbatim, at the size of the question — never a diff. */
+.mock-pre {
+  margin: 0.35rem 0 0;
+  padding: 0.35rem 0.5rem;
+  background: var(--surface-alt);
+  border: none;
+  border-radius: 4px;
+  font: 0.62rem/1.5 var(--mono);
+  color: var(--text-dim);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.mock-rec {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.45;
+  color: var(--text-dim);
+  border-top: 1px solid var(--border);
+  margin-top: 0.5rem;
+  padding-top: 0.4rem;
+}
+.mock-rec b { font: 600 0.58rem/1.5 var(--mono); letter-spacing: 0.09em; text-transform: uppercase; }
+
+/* Where you are in a round. Deliberately not .mock-dots, whose filled state is
+   red because it counts failed batteries: an answered question is not a
+   failure. */
+.mock-steps { display: inline-flex; align-items: center; gap: 0.22rem; }
+.mock-steps i { display: block; width: 0.38rem; height: 0.38rem; border-radius: 999px; background: var(--text-dim); }
+.mock-steps i.now { background: var(--accent); }
+.mock-steps i.todo { background: none; box-shadow: inset 0 0 0 1px var(--rule-strong); }
+
+/* The item page — the surface behind a board card. It is the one place in the
+   app you go to *read* rather than to act, so its vocabulary is all
+   presentation of things that already exist: a spine of the five phases, the
+   item's documents as links to files git already holds, a facts strip for the
+   accounting reference 005 sent here, and an account in the display face
+   because it is prose to be read rather than chrome to be scanned. Colour
+   discipline is the board's, unchanged: --ok for a phase that is finished,
+   --accent for the one running, --warn only where you are being waited on. */
+.mock-lead {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--text);
+  margin: 0 0 0.7rem;
+  max-width: 46rem;
+}
+
+.mock-spine { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0 0 0.75rem; }
+.mock-spine div {
+  flex: 1 1 7rem;
+  background: var(--board-card);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 0.32rem 0.5rem 0.4rem;
+}
+.mock-spine div.done { border-top-color: var(--ok); }
+.mock-spine div.now  { border-top-color: var(--accent); }
+.mock-spine div.attn { border-top-color: var(--warn); }
+.mock-spine .ph { display: block; font: 600 0.58rem/1.6 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.mock-spine .st { display: block; font-size: 0.7rem; line-height: 1.4; color: var(--text); }
+.mock-spine .sub { display: block; font-size: 0.65rem; line-height: 1.4; color: var(--text-dim); }
+
+/* One of the item's documents. It is a link out to a file that renders itself,
+   which is the whole reason this row is cheap: the page frames the repo, it
+   does not re-implement it. .pending is a document that does not exist yet. */
+.mock-doc {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  background: var(--board-card);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.38rem 0.55rem 0.42rem;
+  margin-bottom: 0.3rem;
+}
+.mock-doc .d-name { font: 650 0.75rem/1.4 var(--sans); color: var(--text); }
+.mock-doc .d-say { font-size: 0.7rem; color: var(--text-dim); }
+.mock-doc .d-st { margin-left: auto; font: 0.6rem/1.5 var(--mono); letter-spacing: 0.06em; color: var(--text-dim); white-space: nowrap; }
+.mock-doc.pending { border-style: dashed; }
+.mock-doc.pending .d-name { color: var(--text-dim); font-weight: 600; }
+
+/* The accounting strip. Reference 005 banished cost and duration from the board
+   card to here; this is the "here". */
+.mock-facts { display: flex; flex-wrap: wrap; gap: 0.3rem 1.4rem; padding: 0.5rem 0.1rem 0.1rem; border-top: 1px solid var(--border); }
+.mock-facts div { display: flex; flex-direction: column; }
+.mock-facts .f-k { font: 600 0.56rem/1.6 var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-dim); }
+.mock-facts .f-v { font-size: 0.78rem; color: var(--text); }
+
+/* One entry in a chronological account, for the direction that argues the page
+   should be a timeline. Deliberately plain: the argument against that shape is
+   partly that every entry looks like every other one. */
+.mock-ev { display: flex; gap: 0.6rem; padding: 0.3rem 0 0.32rem 0.1rem; border-bottom: 1px solid var(--border); }
+.mock-ev .e-t { flex: none; width: 4.2rem; font: 0.62rem/1.6 var(--mono); letter-spacing: 0.04em; color: var(--text-dim); }
+.mock-ev .e-s { font-size: 0.73rem; line-height: 1.5; color: var(--text); }
+.mock-ev .e-s b { font-weight: 650; }
+.mock-ev.stop .e-s b { color: var(--stop); }
+
+.mock-cap {
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: var(--text-dim);
+  max-width: 44rem;
+  margin: 0 0 2rem;
+}
+
+@media (max-width: 46rem) {
+  .mock { overflow-x: auto; }
+  .mock-board.cols-4, .mock-board.cols-5, .mock-board.cols-6 { min-width: 38rem; }
+  /* Two columns of row-cards do not survive a phone: fall back to one. */
+  .mock-rail.stacked .mock-rail-items { grid-template-columns: 1fr; }
+  /* Nor does a transcript beside a batch: the panes stack, conversation first. */
+  .mock-desk { flex-direction: column; }
+  .mock-desk > .mock-batch, .mock-desk > .mock-thread { width: auto; align-self: stretch; }
+}
+
+/* ---- The picked look (item 135) -------------------------------------------
+   One of the two pictures a spec may carry: a frame onto look.html beside it,
+   placed by makase in the spec's "The picked look" section. Its width="640"
+   height="200" attributes size it where a project's spec.css predates this
+   rule. */
+
+iframe.look-frame { display: block; width: 100%; max-width: 40rem; height: 200px; margin: 0 0 1.25rem; border: 1px solid var(--border); border-radius: 6px; color-scheme: light dark; }
+
+/* ---- The drawn diagram (item 249) -----------------------------------------
+   The other picture a spec may carry: a frame onto diagram.html beside it,
+   placed by makase in the spec's "The drawn diagram" section. At the column's
+   full width it is 640x440, the desk's frame exactly; narrower, it shrinks and
+   keeps its ratio, and the SVG scales with it through its viewBox. Its
+   width="640" height="440" attributes size it where a project's spec.css
+   predates this rule. */
+
+iframe.diagram-frame { display: block; width: 100%; max-width: 40rem; height: auto; aspect-ratio: 640 / 440; margin: 0 0 1.25rem; border: 1px solid var(--border); border-radius: 6px; color-scheme: light dark; }
+
+/* ---- Footer -------------------------------------------------------------- */
+
+hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+
+footer.doc-footer {
+  max-width: 50rem;
+  margin: 4rem auto 0;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+}
+
+@media print {
+  body { background: #fff; color: #000; padding: 0; }
+  .meta, pre, .card, figure, .tldr, .verdict, blockquote, .mock { break-inside: avoid; }
+  .mock { width: 100%; margin-left: 0; transform: none; overflow: visible; }
+  a { color: #000; }
+}

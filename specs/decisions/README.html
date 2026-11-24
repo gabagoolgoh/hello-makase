@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Decision records (ADRs)</title>
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Decision records</h1>
+  <p class="subtitle">Short, immutable records of decisions that arrived without a spec in front of them.</p>
+
+  <h2>When to write one</h2>
+  <p>
+    Not everything worth remembering arrives as a planned feature. A debugging fix, a config or
+    library trade-off, a load-bearing assumption that turned out to be false — these get decided at
+    the keyboard, with no forward <code>spec → design → tasks</code> chain to gate them. Those go here.
+  </p>
+  <p>
+    The test: <strong>was there anything to plan ahead of?</strong> An ADR records a decision
+    <em>as of a moment</em>; a feature spec plans work <em>ahead</em> of it. Don't dress an emergent
+    fix in the forward template — hollow "In scope / Out of scope" sections are the tell.
+  </p>
+
+  <h2>The rules</h2>
+  <ul>
+    <li><strong>Outside the approval chain.</strong> No grill-me round, no <code>Approved</code> flip, no branch of its own. Write it in the session the decision was made, and move on.</li>
+    <li><strong>Own numbering.</strong> <code>NNN-slug.html</code> starting at <code>001</code>, independent of feature numbers. An ADR <em>about</em> feature 003 is not ADR 003.</li>
+    <li><strong>Immutable.</strong> Never re-edit or re-approve one. If the decision changes later, write a new ADR superseding it and cross-link both.</li>
+    <li><strong>Honest provenance.</strong> If it was decided at the keyboard and written up afterwards, say exactly that. A record that stages a deliberation nobody had is worse than no record.</li>
+    <li><strong>Record the roads not taken</strong> — especially theories that were measured and falsified. A standing wrong explanation is the expensive thing: it costs the next session the same investigation. Put the numbers in.</li>
+  </ul>
+
+  <h2>Template</h2>
+  <pre><code>&lt;!doctype html&gt;
+&lt;html lang="en"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+  &lt;title&gt;ADR NNN: the decision, stated as what changed&lt;/title&gt;
+  &lt;meta name="makase-status" content="Accepted"&gt;
+  &lt;meta name="makase-type" content="adr"&gt;
+  &lt;link rel="stylesheet" href="../assets/spec.css"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;main class="doc"&gt;
+  &lt;h1&gt;ADR NNN: the decision, stated as what changed&lt;/h1&gt;
+  &lt;dl class="meta"&gt;
+    &lt;dt&gt;Status&lt;/dt&gt;&lt;dd&gt;&lt;span class="badge approved"&gt;Accepted&lt;/span&gt;&lt;/dd&gt;
+    &lt;dt&gt;Date&lt;/dt&gt;&lt;dd&gt;YYYY-MM-DD&lt;/dd&gt;
+    &lt;dt&gt;Affects&lt;/dt&gt;&lt;dd&gt;files/modules touched&lt;/dd&gt;
+  &lt;/dl&gt;
+  &lt;p&gt;&lt;strong&gt;Provenance:&lt;/strong&gt; how this came about — e.g. found while debugging X,
+     not a planned feature; decided and applied in one session, written up after.&lt;/p&gt;
+
+  &lt;h2&gt;Context&lt;/h2&gt;
+  &lt;p&gt;What was happening, what was believed, what the evidence actually showed.
+     A table of measurements beats adjectives.&lt;/p&gt;
+
+  &lt;h2&gt;Decision&lt;/h2&gt;
+  &lt;p&gt;The choice, stated plainly, plus what was rejected and why.&lt;/p&gt;
+
+  &lt;h2&gt;Consequences&lt;/h2&gt;
+  &lt;p&gt;What this buys, what it costs, what future work it constrains.&lt;/p&gt;
+&lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;</code></pre>
+
+</main>
+<footer class="doc-footer">
+  makase · <a href="../000-vision.html">vision</a> · <a href="../../.claude/skills/spec-driven-dev/SKILL.md">workflow</a>
+</footer>
+</body>
+</html>

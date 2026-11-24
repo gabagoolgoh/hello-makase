@@ -1,0 +1,129 @@
+<!doctype html>
+<!--
+  The standing vision doc. Everything this project builds afterwards has to stay
+  consistent with it, and a work item that contradicts it is a proposal to amend
+  it rather than a reason to ignore it.
+
+  The metadata tags in the head are machine-readable, and the visible badge in
+  the .meta block below is the same fact for a human. Keep the two in step. The
+  Amended rows are the log: one per amendment, each with an id other documents
+  cite, appended in the order they happened.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>hello-makase — vision</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="vision">
+  <meta name="makase-id" content="000">
+  <meta name="makase-vision-origin" content="inferred">
+  <link rel="stylesheet" href="assets/spec.css">
+</head>
+<body>
+<!--
+  Everything visual comes from assets/spec.css — never inline CSS here. The class
+  vocabulary is listed in assets/template.html's own comment; the ones a vision
+  doc usually wants are .subtitle, .tldr, .note, .cards/.card and .scroll-x.
+-->
+<main class="doc">
+
+  <h1>hello-makase</h1>
+  <p class="subtitle">A one-page to-do app: a playground for trying makase.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Created</dt><dd>2026-11-24</dd>
+    <dt>Origin</dt><dd>Inferred by makase at onboarding, not written by a person</dd>
+  </dl>
+
+  <h2 id="concept">Concept</h2>
+  <p>
+    makase-todo is a one-page to-do list, built with FastAPI, that exists so its owner can try
+    makase on something real without risking a project that matters. Today the page lists the
+    to-dos and has a form to add one. Every card after that changes the page in one small,
+    visible way, so the owner can open it in <em>Test</em> and see a spec become a reviewed,
+    tested change on <code>main</code>.
+  </p>
+
+  <h2 id="quality">Look and feel / quality bar</h2>
+  <p>
+    Every change is something you can see on the page and has a test that drives it the way a
+    browser would, with a form post, and checks the page that comes back. A card is done when
+    it works locally with <code>uv run uvicorn app.main:app</code> and the whole test suite
+    passes in a few seconds. Small and readable beats clever: a newcomer should understand any
+    route in a minute.
+  </p>
+
+  <h2 id="mechanism">How it works</h2>
+  <p>
+    One FastAPI application lives in <code>app/main.py</code>. <code>GET /</code> renders the
+    page on the server from a Python string, escaping every title, and each action is a plain
+    HTML form that posts to a route and is answered with a redirect back to the page. The
+    to-dos are a list in memory, each with an id, a title and a <code>done</code> flag; a few
+    are loaded at start, and nothing survives a restart. Tests in <code>tests/</code> use
+    FastAPI's <code>TestClient</code>, so they run in process with no server, no browser and
+    no network. Dependencies are declared in <code>pyproject.toml</code> and pinned in
+    <code>uv.lock</code>; the test tools are the <code>test</code> extra. makase installs with
+    <code>uv sync --all-extras</code> and tests with <code>uv run pytest</code>, its defaults
+    for a Python project with a lockfile. Its <code>makase-runbook.toml</code> holds only what
+    no default can know: the <code>start</code> command, the <code>port</code>, and
+    <code>opens</code>, so <em>Test</em> opens this page rather than the API docs.
+  </p>
+
+  <h2 id="roster">Scope / roster</h2>
+  <p>
+    Already built: the page lists the to-dos, done ones struck through, and a form adds one.
+    Two specs are written and on the board:
+  </p>
+  <ul>
+    <li><strong>Mark a to-do done</strong>: a button beside each to-do marks it done, and it
+      shows struck through. It is already built, and waits at <em>Test</em> and
+      <em>Merge</em>.</li>
+    <li><strong>Show how many are left</strong>: the page says how many to-dos are not done
+      yet. It waits for approval.</li>
+  </ul>
+  <p>
+    <em>Show how many are left</em> does not need the <em>Done</em> button: it adds its own
+    line under the heading, so it can be approved and built whether or not <em>Mark a to-do
+    done</em> has merged.
+  </p>
+  <p>
+    Out of scope: a database, persistence across restarts, accounts, several lists, and a
+    built front end. This is a playground, and nothing here has to last.
+  </p>
+
+  <h2 id="methodology">Methodology</h2>
+  <p>
+    Every change starts as a card on the board. Its spec is approved before work starts, every
+    change lands with its test, and the test suite is green before anything merges. Each card
+    stops at the merge gate, so its owner opens the page in <em>Test</em> before it lands.
+    Later specs stay consistent with this vision or amend it.
+  </p>
+
+  <h2 id="decisions">Key technical decisions</h2>
+  <ul>
+    <li><strong>FastAPI, one server-rendered page</strong>: no JavaScript build and no template
+      engine, so a change is a route, a few lines of markup and a test.</li>
+    <li><strong>Plain form posts</strong>: every action works with no client code, and
+      <code>TestClient</code> can drive it exactly as a browser does.</li>
+    <li><strong>In memory</strong>: no database to set up and tests stay fast; the cost is
+      that nothing survives a restart.</li>
+    <li><strong>uv with a committed lockfile</strong>: installs are reproducible, and makase's
+      defaults install and test the project, so the runbook only says how to start it.</li>
+  </ul>
+
+  <h2 id="open-questions">Open questions</h2>
+  <ul>
+    <li>Should <em>Mark a to-do done</em> merge before <em>Show how many are left</em> is
+      approved?</li>
+    <li>Once the playground has served its purpose, is it worth keeping, or should a real
+      project be onboarded in its place?</li>
+  </ul>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development
+</footer>
+</body>
+</html>
