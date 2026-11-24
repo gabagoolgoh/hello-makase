@@ -797,22 +797,43 @@ def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
     assert remaining_count(page) == "5 left"
 
 
-def test_case_7_posting_the_same_box_twice_keeps_the_state_it_names() -> None:
-    """Case 7: repeating a box's POST leaves the state that box named, not flipped."""
+def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -> None:
+    """Case 7: resubmitting a row's rendered box leaves the state that box named."""
     open_todo = main.add("Wash the car")
-    for _ in range(2):
-        response = client.post(f"/todos/{open_todo.id}/done", follow_redirects=False)
-        assert response.status_code == 303
-    assert open_todo.done
-    assert "&#9745;" in rendered_item(client.get("/").text, open_todo.title)
-
     done_todo = main.add("Post the letter")
     done_todo.done = True
-    for _ in range(2):
-        response = client.post(f"/todos/{done_todo.id}/undo", follow_redirects=False)
-        assert response.status_code == 303
-    assert not done_todo.done
-    assert "&#9744;" in rendered_item(client.get("/").text, done_todo.title)
+    page = client.get("/").text
+
+    for todo, path, box_glyph, expected_done, result_glyph in (
+        (open_todo, f"/todos/{open_todo.id}/done", "☐", True, "&#9745;"),
+        (done_todo, f"/todos/{done_todo.id}/undo", "☑", False, "&#9744;"),
+    ):
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2
+        box_form = row_forms[0]
+        assert posts_to(box_form, path)
+        box_buttons = buttons_in(box_form)
+        assert len(box_buttons) == 1, "the box form should hold only the box button"
+        assert button_attributes(box_buttons[0]).get("type") == "submit", (
+            "the box must be a submit control"
+        )
+        assert button_text(box_buttons[0]) == box_glyph
+        action = form_attributes(box_form).get("action")
+        assert action is not None, "the box form should name its POST target"
+
+        for _ in range(2):
+            response = client.post(action, follow_redirects=False)
+            assert response.status_code == 303
+            assert response.headers["location"] == "/"
+
+        assert todo.done == expected_done
+        result_row = rendered_item(client.get("/").text, todo.title)
+        assert result_glyph in result_row
+        if expected_done:
+            assert f"<s>{html.escape(todo.title)}</s>" in result_row
+        else:
+            assert "<s>" not in result_row
 
 
 def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
