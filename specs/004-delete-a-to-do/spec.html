@@ -1,0 +1,150 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 004: Delete a to-do</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="004">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="ask">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<!--
+  Everything visual comes from assets/spec.css — never inline CSS here.
+  Class vocabulary it provides, all optional beyond .doc / .meta / .badge:
+
+    .subtitle    serif italic standfirst under the h1
+    .eyebrow     small mono uppercase label; sits above a heading or opens a card
+    .tldr        boxed lead summary — the "read this if nothing else" block
+    .note        accent callout        .warn-box  caution callout
+    .verdict     bordered conclusion box, heavier than .note
+    blockquote   serif pull-quote; put attribution in a <cite>
+    .cards/.card responsive card grid (h4 titles)
+    .scroll-x    wrapper for any wide table
+    .chip        inline status pill for table cells (.ok / .warn / .stop)
+    ol.decisions the decision list
+    figure.chart inline SVG chart: .chart-title, .chart-sub, .chart-legend,
+                 .chart-scroll, a <details> table view, and the --viz-* colour
+                 roles (validated for colour-vision safety — see spec.css)
+    .mock-*      board/card UI mockups — UI workshop docs only, never drawn in
+                 a spec's prose; full vocabulary in spec.css's "UI mockups" block
+    .look-frame  one of the two pictures a spec may carry: the look its
+                 brainstorm picked, which makase places in its own "The picked
+                 look" section as a frame onto look.html beside the spec.
+    .diagram-frame  the other: the diagram its brainstorm drew of the
+                 architecture, which makase places in its own "The drawn
+                 diagram" section as a frame onto diagram.html beside the
+                 spec. makase places both; neither is ever written by hand,
+                 and neither is ever a picture nobody saw.
+-->
+<main class="doc">
+
+  <h1>Spec 004: Delete a to-do</h1>
+  <p class="subtitle">One line on what this feature is.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-24</dd>
+    <dt>Depends on</dt><dd>&mdash;</dd>
+    <dt>Merge</dt><dd>needs your approval</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>You can press <em>Delete</em> beside any to-do on the page, whether it is done or still open, and the page comes back without it, its count of what is left already updated, and every other to-do exactly as it was.</p>
+
+  <h2>What</h2>
+  <p>Every row of the list gets a <em>Delete</em> button, after its existing button: an open to-do shows <em>Done</em> then <em>Delete</em>, and a done one shows <em>Undo</em> then <em>Delete</em>. <em>Delete</em> is a plain HTML form, <code>method="post"</code>, with its submit button inside, posting to a new route <code>POST /todos/{todo_id}/delete</code>. The route removes that to-do from the in-memory list and answers <code>303</code> to <code>/</code>, like Done and Undo. There is no confirmation step and no way to bring a deleted to-do back.</p>
+  <p>Deleting an id that is not on the list (already deleted, by a double click or an old tab) changes nothing and also answers <code>303</code> to <code>/</code>, because the to-do being gone is what was asked for.</p>
+  <p>Ids are never reused. Today <code>add()</code> takes the highest id on the list plus one, so deleting the newest to-do and adding another would hand the new one the old id, and a Delete left in a stale tab would remove the wrong to-do. <code>add()</code> instead takes the next number from a counter that only goes up, and <code>reset()</code> starts that counter again, so the starters still get ids 1 to 5.</p>
+  <p>The remaining count stays derived in <code>render()</code> from the <code>done</code> flags, so it follows a deletion with no change of its own. Titles stay escaped.</p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>app/main.py</code>, <code>add(title)</code>: assigns ids from a monotonic counter instead of <code>max(id) + 1</code>; same signature and return value.</li>
+    <li><code>app/main.py</code>, <code>reset()</code>: also restarts the id counter, so a fresh list numbers the starters 1 to 5 as today.</li>
+    <li><code>app/main.py</code>, <code>item(todo)</code>: emits a second inline form, <code>class="delete"</code>, after the Done or Undo form, posting to <code>/todos/{id}/delete</code>, with a button reading <code>Delete</code>.</li>
+    <li><code>app/main.py</code>, <code>render()</code>: the inline-form style rule <code>form.done, form.undo</code> also covers <code>form.delete</code>, so Delete sits beside the other button in the same style.</li>
+    <li><code>app/main.py</code>, new route <code>POST /todos/{todo_id}/delete</code> (handler <code>delete</code>).</li>
+    <li><code>tests/test_main.py</code>: new tests for the cases below; <code>test_a_done_todo_shows_undo_and_an_open_one_does_not</code> (spec 003, case 5) changes from &ldquo;exactly one form a row&rdquo; to &ldquo;exactly two: Done or Undo, then Delete&rdquo;, still checking real <code>method</code> and <code>action</code> attributes and that an open row offers no Undo.</li>
+    <li>Must not change: <code>GET /</code>, <code>POST /todos</code>, <code>/done</code> and <code>/undo</code> and their 404s for an unknown id, the remaining-count wording (<code>N left</code>, <code>1 left</code>, <code>Nothing left</code>), the order of the list, and the escaping of titles.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li>Deleting an open to-do answers <code>303</code> to <code>/</code>; the page no longer shows it and the count drops by one.</li>
+    <li>Deleting a done to-do answers <code>303</code> to <code>/</code>; the page no longer shows it and the count is unchanged.</li>
+    <li>Deleting one to-do leaves every other to-do with the same id, title, done flag and order.</li>
+    <li>Every open row has exactly two forms, Done then Delete; every done row has exactly two, Undo then Delete; each is a real <code>method="post"</code> form with the button inside and its exact <code>action</code>.</li>
+    <li>Deleting an id that is not on the list answers <code>303</code> to <code>/</code> and changes nothing; deleting the same to-do twice in a row does the same the second time.</li>
+    <li>Deleting every to-do leaves an empty list; the page still renders, says <code>Nothing left</code>, and still offers the Add form.</li>
+    <li>After deleting the newest to-do, adding a new one gives it an id no to-do has had before, and a Delete for the old id leaves the new one in place.</li>
+    <li>After <code>reset()</code>, the starters have ids 1 to 5 again.</li>
+    <li><code>POST /todos/not-an-int/delete</code> is refused with <code>422</code> and changes nothing.</li>
+    <li>Done and Undo on a deleted id still answer <code>404</code>.</li>
+    <li>A to-do whose title holds HTML shows escaped beside its Delete button, and deleting it removes it.</li>
+  </ol>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Delete on every row</strong>: done and open to-dos both get a Delete button. This deliberately overturns spec 003&rsquo;s &ldquo;one form a row&rdquo; rule, and its test is updated, not worked around. Rejected: Delete only on done items, which would force you to tick something you meant to throw away.</li>
+    <li><strong>No confirmation</strong>: one click deletes. With no JavaScript a confirmation means a second page, which is too heavy for a playground whose list does not survive a restart. Accepted cost: a misclick loses the to-do.</li>
+    <li><strong>A dedicated POST route</strong>: <code>POST /todos/{id}/delete</code>, mirroring <code>/done</code> and <code>/undo</code>. Rejected: an HTTP <code>DELETE</code>, which a plain HTML form cannot send.</li>
+    <li><strong>An already-gone id redirects instead of 404</strong>: a double click or a resubmitted form should land back on the page, not on an error. Unlike Done and Undo, Delete needs no to-do to act on: the outcome it asks for already holds. Done and Undo keep their 404s.</li>
+    <li><strong>Ids are never reused</strong>: a counter replaces <code>max(id) + 1</code>, so a stale Delete can never hit a newer to-do. <code>reset()</code> restarts the counter, so tests keep their predictable ids. makase chose this; the risk it closes appears only once deleting exists.</li>
+    <li><strong>No undo for a delete, no trash</strong>: not asked for, and nothing here persists anyway. makase chose this.</li>
+    <li><strong>Delete sits after the existing button, styled the same</strong>: it shares the inline-form rule with Done and Undo. makase chose this; a distinct (for example red) look is left to a later card if wanted.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>
