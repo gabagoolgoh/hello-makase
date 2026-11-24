@@ -449,9 +449,14 @@ def rendered_item(page: str, title: str) -> str:
     return next(line for line in page.splitlines() if html.escape(title) in line)
 
 
+def rendered_list_items(page: str) -> list[str]:
+    """Each whole to-do list item, ``<li>...</li>``, rather than a whole source line."""
+    return re.findall(r'<li class="todo[^"]*">.*?</li>', page, re.DOTALL)
+
+
 def rendered_titles(page: str, todos: list[main.Todo]) -> list[str]:
     """The titles of the rendered to-do rows, in the order the page draws them."""
-    rows = re.findall(r'<li class="todo[^"]*">.*?</li>', page, re.DOTALL)
+    rows = rendered_list_items(page)
     titles = []
     for row in rows:
         matches = [one.title for one in todos if html.escape(one.title) in row]
@@ -510,10 +515,14 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
     assert len(done_todos) > 1, "the list should hold several done to-dos"
     assert len(open_todos) > 1, "the list should hold several open to-dos"
 
+    rows = rendered_list_items(page)
+    assert len(rows) == len(main.todos), "the page should draw one list item per to-do"
     for todo in main.todos:
-        row = rendered_item(page, todo.title)
+        matching_rows = [row for row in rows if html.escape(todo.title) in row]
+        assert len(matching_rows) == 1, f"{todo.title} should have exactly one list item"
+        row = matching_rows[0]
         row_forms = forms_in(row)
-        assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions"
+        assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions inside its row"
 
         first_action = "undo" if todo.done else "done"
         first_button = "Undo" if todo.done else "Done"
