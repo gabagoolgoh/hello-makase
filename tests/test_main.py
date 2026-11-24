@@ -545,6 +545,34 @@ def posts_to(form: str, path: str) -> bool:
     return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
 
 
+def tag_has_attribute(tag: str, name: str) -> bool:
+    """Whether a start tag carries an attribute, including a valueless boolean one."""
+    opening = tag[: tag.index(">")]
+    without_quoted_values = re.sub(r'"[^"]*"|\'[^\']*\'', "", opening)
+    return (
+        re.search(
+            rf"(?<![-:\w]){re.escape(name)}(?=\s|=|/?>)",
+            without_quoted_values,
+            re.IGNORECASE,
+        )
+        is not None
+    )
+
+
+def form_submission(form: str, submitter: str) -> tuple[str, str]:
+    """The method and target a browser sends when ``submitter`` activates ``form``.
+
+    A submitter's own ``formmethod`` and ``formaction`` override the form's, and a disabled
+    submitter cannot submit at all. The method is returned lower-cased.
+    """
+    assert not tag_has_attribute(submitter, "disabled"), "the box must be enabled to submit"
+    form_values = form_attributes(form)
+    submitter_values = button_attributes(submitter)
+    method = submitter_values.get("formmethod", form_values.get("method", ""))
+    action = submitter_values.get("formaction", form_values.get("action", ""))
+    return method.lower(), action
+
+
 def buttons_in(fragment: str) -> list[str]:
     """Each whole live ``<button ...>...</button>`` in a page fragment."""
     return re.findall(
@@ -839,11 +867,13 @@ def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
     assert posts_to(box_form, f"/todos/{todo.id}/done")
     box_buttons = buttons_in(box_form)
     assert len(box_buttons) == 1, "the box form should hold only the box button"
-    assert button_attributes(box_buttons[0]).get("type") == "submit", (
+    box_button = box_buttons[0]
+    assert button_attributes(box_button).get("type") == "submit", (
         "the box must be a submit control"
     )
-    action = form_attributes(box_form).get("action")
-    assert action is not None, "the box form should name its POST target"
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
 
     response = client.post(action, follow_redirects=False)
 
@@ -869,11 +899,13 @@ def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
     assert posts_to(box_form, f"/todos/{todo.id}/undo")
     box_buttons = buttons_in(box_form)
     assert len(box_buttons) == 1, "the box form should hold only the box button"
-    assert button_attributes(box_buttons[0]).get("type") == "submit", (
+    box_button = box_buttons[0]
+    assert button_attributes(box_button).get("type") == "submit", (
         "the box must be a submit control"
     )
-    action = form_attributes(box_form).get("action")
-    assert action is not None, "the box form should name its POST target"
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/undo"
 
     response = client.post(action, follow_redirects=False)
 
@@ -907,12 +939,14 @@ def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -
         assert posts_to(box_form, path)
         box_buttons = buttons_in(box_form)
         assert len(box_buttons) == 1, "the box form should hold only the box button"
-        assert button_attributes(box_buttons[0]).get("type") == "submit", (
+        box_button = box_buttons[0]
+        assert button_attributes(box_button).get("type") == "submit", (
             "the box must be a submit control"
         )
-        assert button_text(box_buttons[0]) == box_glyph
-        action = form_attributes(box_form).get("action")
-        assert action is not None, "the box form should name its POST target"
+        assert button_text(box_button) == box_glyph
+        method, action = form_submission(box_form, box_button)
+        assert method == "post"
+        assert action == path
 
         for _ in range(2):
             response = client.post(action, follow_redirects=False)
@@ -1014,8 +1048,9 @@ def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
     assert attributes.get("aria-checked") == "false"
     assert html.unescape(attributes.get("aria-label", "")) == todo.title
 
-    action = form_attributes(box_form).get("action")
-    assert action is not None, "the box form should name its POST target"
+    method, action = form_submission(box_form, box_button)
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
     posted = client.post(action, follow_redirects=False)
     assert posted.status_code == 303
     assert posted.headers["location"] == "/"
@@ -1036,8 +1071,12 @@ def test_case_5_page_styles_keep_a_newly_done_title_struck_through() -> None:
     todo = main.add("Wash the car")
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    action = form_attributes(forms_in(row)[0]).get("action")
-    assert action is not None, "the open box should name its POST target"
+    box_form = forms_in(row)[0]
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1, "the box form should hold only the box button"
+    method, action = form_submission(box_form, box_buttons[0])
+    assert method == "post"
+    assert action == f"/todos/{todo.id}/done"
 
     response = client.post(action, follow_redirects=False)
 
