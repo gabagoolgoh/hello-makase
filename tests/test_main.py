@@ -226,6 +226,62 @@ def test_deleting_one_todo_leaves_every_other_unchanged() -> None:
     assert [(one.id, one.title, one.done) for one in main.todos] == others
 
 
+def test_overlapping_deletes_leave_both_deleted_todos_gone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Cases 3 and 5: a Delete must not restore what another Delete removed meanwhile."""
+    first = main.todos[1]
+    second = main.todos[3]
+    others = [
+        (one.id, one.title, one.done) for one in main.todos if one is not first and one is not second
+    ]
+
+    class OverlappingDeletes(list[main.Todo]):
+        trigger = True
+
+        def __iter__(self) -> Iterator[main.Todo]:
+            snapshot = list.copy(self)
+            if self.trigger:
+                self.trigger = False
+                assert main.delete(second.id).status_code == 303
+            return iter(snapshot)
+
+    monkeypatch.setattr(main, "todos", OverlappingDeletes(main.todos))
+
+    response = client.post(f"/todos/{first.id}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert first.id not in [one.id for one in main.todos]
+    assert second.id not in [one.id for one in main.todos]
+    assert [(one.id, one.title, one.done) for one in main.todos] == others
+
+
+def test_a_missing_delete_does_not_discard_an_overlapping_add(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Case 5: deleting an absent id must not overwrite an Add that lands meanwhile."""
+    missing = max(one.id for one in main.todos) + 1
+    added: list[main.Todo] = []
+
+    class AddDuringIteration(list[main.Todo]):
+        trigger = True
+
+        def __iter__(self) -> Iterator[main.Todo]:
+            snapshot = list.copy(self)
+            if self.trigger:
+                self.trigger = False
+                added.append(main.add("Added during Delete"))
+            return iter(snapshot)
+
+    monkeypatch.setattr(main, "todos", AddDuringIteration(main.todos))
+
+    response = client.post(f"/todos/{missing}/delete", follow_redirects=False)
+
+    assert response.status_code == 303
+    assert added, "the overlapping Add should have happened"
+    new_todo = added[0]
+    assert new_todo in main.todos
+    assert new_todo.title in client.get("/").text
+
+
 def test_a_missing_or_repeated_delete_answers_303_and_changes_nothing() -> None:
     """Case 5: an absent id, and deleting one to-do twice, both redirect and change nothing."""
     before = [(one.id, one.title, one.done) for one in main.todos]

@@ -160,8 +160,14 @@ def delete(todo_id: int) -> RedirectResponse:
     """Remove one to-do, then send the browser back to the page.
 
     An id that is not on the list is already gone, so it also redirects rather than 404s.
+    The live list is edited in place, so another request's Add or Delete is not overwritten.
     """
-    todos[:] = [one for one in todos if one.id != todo_id]
+    todo = next((one for one in todos if one.id == todo_id), None)
+    if todo is not None:
+        try:
+            todos.remove(todo)
+        except ValueError:  # another Delete removed it between the lookup and the removal
+            pass
     return RedirectResponse("/", status_code=303)
 
 
