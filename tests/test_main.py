@@ -257,11 +257,15 @@ def test_deleting_every_todo_leaves_an_empty_page_with_the_add_form() -> None:
         assert response.status_code == 303
 
     assert main.todos == []
-    page = client.get("/").text
+    response = client.get("/")
+    assert response.status_code == 200
+    page = response.text
+    assert not re.search(r"<li\b", page), "the empty page should list no to-do rows"
     assert remaining_count(page) == "Nothing left"
     add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
     assert len(add_forms) == 1, "the empty page should still offer its Add form"
     assert '<input name="title"' in add_forms[0]
+    assert '<button type="submit">Add</button>' in add_forms[0]
 
 
 def test_a_new_todo_gets_an_unused_id_after_the_newest_is_deleted() -> None:
