@@ -123,9 +123,11 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     assert response.headers["location"] == "/"
     assert not todo.done
     page = client.get("/").text
-    assert f"<s>{todo.title}</s>" not in page
-    assert f'action="/todos/{todo.id}/undo"' not in page
-    assert f'action="/todos/{todo.id}/done"' in page
+    row = rendered_item(page, todo.title)
+    assert html.escape(todo.title) in row
+    assert "<s>" not in row
+    assert '<button type="submit">Done</button>' in row
+    assert "Undo" not in row
 
 
 def test_undoing_raises_the_remaining_count_by_one() -> None:
