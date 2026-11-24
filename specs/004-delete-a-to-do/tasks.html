@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 004: Delete a to-do</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="004">
+  <meta name="makase-depends-on" content="">
+  <meta name="makase-merge" content="ask">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 004: Delete a to-do</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Delete a to-do</a></dd>
+  </dl>
+
+<table class="groups">
+  <tr><td>A</td><td>Add a Delete button on every to-do, a delete route, and non-reused ids</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☐ <strong>A1. <code>tests/test_main.py</code>: add tests that deleting an open to-do answers <code>303</code> to <code>/</code> and drops the remaining count by one, deleting a done one answers the same and leaves the count unchanged, every other to-do keeps its id, title, done flag and order, a stale or twice-deleted id answers <code>303</code> and changes nothing, deleting everything leaves an empty page with <code>Nothing left</code> and the Add form, Done and Undo on a deleted id still answer <code>404</code>, and an HTML title stays escaped until its Delete removes it (cases 1, 2, 3, 5, 6, 10 and 11), and see them fail before the route exists.</strong></li>
+  <li data-group="A">☐ <strong>A2. <code>tests/test_main.py</code>: add tests that every open row has exactly two real POST forms, Done then Delete, every done row has exactly two, Undo then Delete, each with its submit button inside and its exact action, that after deleting the newest to-do a new one gets an id never used before and a Delete for the old id leaves it in place, that <code>reset()</code> numbers the starters 1 to 5 again, and that <code>POST /todos/not-an-int/delete</code> answers <code>422</code> and changes nothing (cases 4, 7, 8 and 9), updating the spec 003 case 5 test from one form a row to Done-or-Undo then Delete, and see them fail before the counter and Delete form exist.</strong></li>
+  <li data-group="A">☐ <strong>A3. <code>app/main.py</code>: replace <code>add()</code>'s <code>max(id) + 1</code> with a monotonic id counter that <code>reset()</code> restarts, so ids are never reused and the starters are 1 to 5.</strong></li>
+  <li data-group="A">☐ <strong>A4. <code>app/main.py</code>: make <code>item()</code> emit a second inline <code>class="delete"</code> POST form after the Done or Undo form, posting to <code>/todos/{id}/delete</code> with a <code>Delete</code> button, and make <code>render()</code>'s inline-form rule cover <code>form.delete</code>.</strong></li>
+  <li data-group="A">☐ <strong>A5. <code>app/main.py</code>: add the <code>POST /todos/{todo_id}/delete</code> handler that removes that to-do if present and answers <code>303</code> to <code>/</code> whether or not it was there.</strong></li>
+</ol>
+
+</main>
+</body>
+</html>
