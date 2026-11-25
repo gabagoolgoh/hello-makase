@@ -1,0 +1,149 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 009: Built JS front end</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="009">
+  <meta name="makase-walk" content="short">
+  <meta name="makase-walk-says" content="short: rated 3 of 5 by claude-haiku-5-5. It spans a new Vite build, a vanilla JS client with several interactions, FastAPI route changes, and runbook edits, but the spec and decisions already settle most choices, so the design walk would mainly confirm them.">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="008">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="auto">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Spec 009: Built JS front end</h1>
+  <p class="subtitle">Add a separate built JS front end consuming the JSON API and update the runbook.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Approved</dt><dd>2026-11-25</dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-25</dd>
+    <dt>Depends on</dt><dd>008</dd>
+    <dt>Merge</dt><dd>pre-approved</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>Building the front end produces a working to-do page that loads, adds, completes, undoes, edits, and deletes items via the JSON API without full-page reloads. Opening the app in Test serves the built UI, and the old server-rendered routes are removed.</p>
+
+  <h2>What</h2>
+  <p>
+    Add a separate Vite-based JavaScript front end in <code>frontend/</code> that builds to
+    <code>frontend/dist/</code> and consumes the <code>/api/todos</code> JSON API via
+    <code>fetch</code> with no full-page reloads. Wire FastAPI in <code>app/main.py</code> to
+    serve the built front end at <code>/</code>, remove the old server-rendered HTML helpers
+    and form-post routes, and update <code>makase-runbook.toml</code> so <em>Test</em> builds
+    and serves the built UI.
+  </p>
+  <p>
+    The built page reproduces the single-card to-do interface and handles all interactions in
+    place:
+  </p>
+  <ul>
+    <li><strong>Load</strong> — fetches <code>GET /api/todos</code> on startup, renders the heading, remaining counter (<code>"Nothing left"</code> when <code>0</code>, otherwise <code>"{remaining} left"</code>), and each to-do row with titles rendered as plain text (never parsed as HTML).</li>
+    <li><strong>Add</strong> — submitting a non-blank title sends <code>POST /api/todos</code>, appends the returned item, clears the input, and updates the remaining counter; blank submissions are ignored or show an inline error without mutating the list.</li>
+    <li><strong>Complete and undo</strong> — clicking a row's checkbox sends <code>PATCH /api/todos/{id}</code> with <code>{"done": !todo.done}</code> and updates the row's done styling and remaining counter.</li>
+    <li><strong>Edit</strong> — clicking <em>Edit</em> switches the row to an inline input pre-filled with the title plus <em>Save</em> and <em>Cancel</em>; <em>Cancel</em> exits edit mode without an API call, and <em>Save</em> sends <code>PATCH /api/todos/{id}</code> with the trimmed title (rejecting blank titles).</li>
+    <li><strong>Delete</strong> — clicking <em>Delete</em> sends <code>DELETE /api/todos/{id}</code>, removes the row, and updates the remaining counter.</li>
+    <li><strong>Errors</strong> — if any API request fails (e.g., <code>404</code>, <code>422</code>, or network failure), displays a visible error message without crashing or losing the rest of the list.</li>
+  </ul>
+  <p>
+    This item does <strong>not</strong> add persistence, user accounts, or multiple lists.
+  </p>
+  <p>
+    <strong>By-hand check for the merge gate</strong>: open the app in <em>Test</em> at
+    <code>/</code>, confirm the starter to-dos appear, and add, complete, undo, edit, and
+    delete an item while verifying no full-page reload occurs.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>frontend/package.json</code> (new file) — Vite dependencies and <code>build</code> / <code>dev</code> scripts.</li>
+    <li><code>frontend/vite.config.js</code> (new file) — Vite configuration with <code>/api</code> proxy to <code>http://127.0.0.1:8000</code> for local dev.</li>
+    <li><code>frontend/index.html</code> (new file) — HTML entry point for the Vite build.</li>
+    <li><code>frontend/src/main.js</code> and <code>frontend/src/style.css</code> (new files) — client application consuming <code>/api/todos</code> and card styles.</li>
+    <li><code>app/main.py</code> — remove <code>item()</code>, <code>edit_item()</code>, <code>render()</code>, and the old form-post routes (<code>POST /todos</code> and <code>POST /todos/{todo_id}/*</code>); serve <code>frontend/dist</code> at <code>/</code> (and built assets) mounted after <code>/api</code> routes.</li>
+    <li><code>makase-runbook.toml</code> — update <code>start</code> so <em>Test</em> installs/builds <code>frontend/</code> and starts <code>uvicorn app.main:app</code> serving the built UI at <code>opens = "/"</code>.</li>
+    <li><code>tests/test_main.py</code> — replace tests targeting the removed server-rendered HTML/form routes with tests verifying <code>GET /</code> serves the built UI and the old form-post routes are removed.</li>
+    <li><code>tests/test_api.py</code> — must continue passing unchanged.</li>
+    <li><code>.gitignore</code> — ignore <code>frontend/node_modules/</code> and <code>frontend/dist/</code>.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li>Running the front-end build (<code>npm run build</code> in <code>frontend/</code>) exits <code>0</code> and outputs <code>frontend/dist/index.html</code> and bundled assets.</li>
+    <li><code>GET /</code> on FastAPI returns <code>200</code> <code>text/html</code> serving <code>frontend/dist/index.html</code>, and built asset URLs under <code>/assets/</code> return <code>200</code>.</li>
+    <li>Old server-rendered form routes (<code>POST /todos</code>, <code>POST /todos/1/done</code>, <code>POST /todos/1/undo</code>, <code>POST /todos/1/edit</code>, <code>POST /todos/1/delete</code>) are removed and return <code>404</code> or <code>405</code>.</li>
+    <li>Initial load fetches <code>GET /api/todos</code> and renders all returned items plus <code>"N left"</code> (or <code>"Nothing left"</code> when <code>0</code>).</li>
+    <li>Submitting a non-blank title sends <code>POST /api/todos</code>, appends the created item, clears the input, and updates the remaining count without a page reload.</li>
+    <li>Submitting a blank or whitespace-only title does not send a create mutation or add a blank item.</li>
+    <li>Toggling a checkbox sends <code>PATCH /api/todos/{id}</code> with <code>{"done": true}</code> for open items and <code>{"done": false}</code> for done items, updating the row and remaining count.</li>
+    <li>Clicking <em>Edit</em> opens an inline input with the item's title; clicking <em>Cancel</em> closes it without calling <code>PATCH</code>; saving a non-blank title calls <code>PATCH /api/todos/{id}</code> and updates the row; saving a blank title does not overwrite the item.</li>
+    <li>Clicking <em>Delete</em> sends <code>DELETE /api/todos/{id}</code>, removes the row, and updates the remaining count.</li>
+    <li>A title containing HTML markup (such as <code>&lt;b&gt;bold&lt;/b&gt;</code>) renders as literal text rather than parsed HTML.</li>
+    <li>An API error response (<code>404</code> or <code>422</code>) renders a visible error message without crashing or clearing the list.</li>
+  </ol>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Separate built JS front end with Vite (operator choice)</strong>: add a Vite build in <code>frontend/</code> as the API's first consumer; rejected plain static JS with no build step (makase's recommendation) because the operator chose a separate built front end.</li>
+    <li><strong>Vanilla JS inside Vite (makase chose this)</strong>: keeps the client small, dependency-light, and easy to read for a single-page to-do list; rejected adding a larger UI framework like React or Vue.</li>
+    <li><strong>Serve <code>frontend/dist</code> from FastAPI in <em>Test</em> (makase chose this)</strong>: mounting the built static files in FastAPI after <code>/api</code> routes lets one <code>start</code> command in <code>makase-runbook.toml</code> serve both the UI and API on port <code>8000</code> with no CORS setup; rejected running two separate servers in the runbook.</li>
+    <li><strong>Remove old server-rendered HTML and form routes</strong>: delete <code>render()</code>, <code>item()</code>, <code>edit_item()</code>, and <code>POST /todos*</code> now that the built UI replaces them, leaving a single UI path.</li>
+    <li><strong>Gitignore <code>frontend/node_modules/</code> and <code>frontend/dist/</code> (makase chose this)</strong>: keep generated dependencies and build outputs out of git and build them during setup/start in <code>makase-runbook.toml</code>.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>

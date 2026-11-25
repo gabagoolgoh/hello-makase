@@ -1,0 +1,141 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 008: JSON to-do API</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="008">
+  <meta name="makase-walk" content="short">
+  <meta name="makase-walk-says" content="short: rated 2 of 5 by claude-haiku-5-5. Four JSON endpoints over an existing in-memory list, with the behavior, status codes, and key decisions already pinned down by the spec.">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="auto">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Spec 008: JSON to-do API</h1>
+  <p class="subtitle">Expose JSON endpoints in FastAPI for listing, creating, updating, and deleting to-dos.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Approved</dt><dd>2026-11-25</dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-25</dd>
+    <dt>Depends on</dt><dd>&mdash;</dd>
+    <dt>Merge</dt><dd>pre-approved</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>Calling the JSON endpoints with TestClient lists, adds, completes, undoes, edits, and deletes to-dos in memory and returns JSON errors for missing items or blank titles. The existing server-rendered routes keep working until the new front end replaces them.</p>
+
+  <h2>What</h2>
+  <p>
+    Add a JSON API under <code>/api/todos</code> in <code>app/main.py</code> backed by the
+    existing in-memory <code>todos</code> list, <code>Todo</code> dataclass,
+    <code>next_id</code> counter, <code>add()</code>, and <code>reset()</code>. All existing
+    server-rendered HTML and form-post routes (<code>GET /</code>, <code>POST /todos</code>,
+    and <code>POST /todos/{todo_id}/*</code>) remain intact and continue sharing the same
+    in-memory state until the built front end replaces them.
+  </p>
+  <p>
+    Each to-do serializes as <code>{"id": int, "title": str, "done": bool}</code> with the
+    raw, unescaped <code>title</code> string. The endpoints are:
+  </p>
+  <ul>
+    <li><code>GET /api/todos</code> — returns <code>200</code> with <code>{"todos": [...], "remaining": int}</code>, where <code>todos</code> preserves insertion order and <code>remaining</code> is the count of items with <code>done == false</code>.</li>
+    <li><code>POST /api/todos</code> — accepts JSON <code>{"title": str}</code>, trims surrounding whitespace, and rejects missing or blank titles with <code>422</code> JSON <code>{"detail": ...}</code>. On success, appends via <code>add()</code> and returns <code>201</code> with the created item.</li>
+    <li><code>PATCH /api/todos/{todo_id}</code> — accepts JSON with optional <code>title</code> and/or <code>done</code> fields. Returns <code>404</code> JSON <code>{"detail": ...}</code> if <code>todo_id</code> is not in <code>todos</code>. If <code>title</code> is provided, trims it and returns <code>422</code> JSON <code>{"detail": ...}</code> without modifying the item when blank. If <code>done</code> is provided, sets <code>todo.done</code> (supporting both completing and undoing, idempotently). Returns <code>200</code> with the updated item.</li>
+    <li><code>DELETE /api/todos/{todo_id}</code> — removes the item from <code>todos</code> in place and returns <code>204</code>. Returns <code>404</code> JSON <code>{"detail": ...}</code> if <code>todo_id</code> is not in <code>todos</code>.</li>
+  </ul>
+  <p>
+    This item does <strong>not</strong> add a JavaScript front end, static file serving,
+    persistence across restarts, authentication, or multiple lists, and does not modify or
+    remove any existing server-rendered route or test in <code>tests/test_main.py</code>.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>app/main.py</code> — keep <code>app</code>, <code>Todo</code>, <code>STARTERS</code>, <code>todos</code>, <code>next_id</code>, <code>reset()</code>, <code>add()</code>, and all existing HTML/form routes unchanged; add Pydantic request/response models and the <code>GET /api/todos</code>, <code>POST /api/todos</code>, <code>PATCH /api/todos/{todo_id}</code>, and <code>DELETE /api/todos/{todo_id}</code> route handlers.</li>
+    <li><code>tests/test_api.py</code> (new file) — <code>TestClient(main.app)</code> test suite for the JSON endpoints, using an autouse fixture calling <code>main.reset()</code>.</li>
+    <li><code>tests/test_main.py</code> — must not change; all existing server-rendered tests must remain green.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li><code>GET /api/todos</code> on a fresh app returns <code>200</code> with the 5 starter to-dos in order and <code>remaining: 4</code>.</li>
+    <li><code>GET /api/todos</code> when <code>todos</code> is empty returns <code>200</code> with <code>{"todos": [], "remaining": 0}</code>.</li>
+    <li><code>POST /api/todos</code> with <code>{"title": "  Fix the bike  "}</code> trims the title, appends a new item with <code>done: false</code> and a fresh <code>id</code>, and returns <code>201</code> with that item; a subsequent <code>GET /api/todos</code> includes it and increments <code>remaining</code>.</li>
+    <li><code>POST /api/todos</code> with an empty or whitespace-only <code>title</code> returns <code>422</code> JSON error and leaves <code>todos</code> unchanged.</li>
+    <li><code>POST /api/todos</code> with a missing <code>title</code> field or invalid JSON body returns <code>422</code> JSON error and leaves <code>todos</code> unchanged.</li>
+    <li><code>PATCH /api/todos/{id}</code> with <code>{"done": true}</code> marks an open item done, returns <code>200</code> with <code>done: true</code>, and decrements <code>remaining</code> in <code>GET /api/todos</code>.</li>
+    <li><code>PATCH /api/todos/{id}</code> with <code>{"done": false}</code> undoes a done item, returns <code>200</code> with <code>done: false</code>, and increments <code>remaining</code> in <code>GET /api/todos</code>.</li>
+    <li><code>PATCH /api/todos/{id}</code> repeating <code>{"done": true}</code> on an already-done item (or <code>{"done": false}</code> on an open item) is idempotent and returns <code>200</code>.</li>
+    <li><code>PATCH /api/todos/{id}</code> with <code>{"title": "  New title  "}</code> updates the title to <code>"New title"</code> (preserving raw characters such as <code>&lt;b&gt;</code> without HTML-escaping) and returns <code>200</code>.</li>
+    <li><code>PATCH /api/todos/{id}</code> with an empty or whitespace-only <code>title</code> returns <code>422</code> JSON error and leaves the item's title unchanged.</li>
+    <li><code>PATCH /api/todos/{id}</code> for a non-existent <code>id</code> returns <code>404</code> JSON error.</li>
+    <li><code>DELETE /api/todos/{id}</code> removes the item, returns <code>204</code>, and a subsequent <code>GET /api/todos</code> omits it without reusing its <code>id</code> on later adds.</li>
+    <li><code>DELETE /api/todos/{id}</code> for a non-existent <code>id</code> or a repeated delete of the same <code>id</code> returns <code>404</code> JSON error.</li>
+    <li>Existing server-rendered routes (<code>GET /</code> and <code>POST /todos*</code>) continue to return HTML/redirect responses and share the same in-memory <code>todos</code> list.</li>
+  </ol>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>API-first JSON backend alongside existing routes</strong>: add JSON endpoints now while keeping the server-rendered routes working until the JS front end replaces them — avoids breaking the app between cards; rejected replacing HTML routes in-place before a client exists.</li>
+    <li><strong>Namespace JSON endpoints under <code>/api/todos</code> (makase chose this)</strong>: avoids colliding with the existing form-post <code>/todos</code> routes during the transition; rejected content-negotiation on <code>/todos</code> because form posts and JSON clients expect different status codes and bodies.</li>
+    <li><strong>Single <code>PATCH /api/todos/{todo_id}</code> endpoint for done, undo, and title edits (makase chose this)</strong>: one partial-update endpoint handles both <code>done</code> and <code>title</code> cleanly; rejected separate <code>/done</code>, <code>/undo</code>, and <code>/edit</code> JSON action routes as unnecessary duplication.</li>
+    <li><strong>Return <code>422</code> for blank titles and <code>404</code> for missing items on <code>PATCH</code> and <code>DELETE</code> (makase chose this)</strong>: explicit JSON errors let the JS client detect and report invalid input or missing items instead of silently ignoring them like the form-post routes did.</li>
+    <li><strong>Keep in-memory storage</strong>: preserve <code>todos</code>, <code>STARTERS</code>, and <code>reset()</code> with no database — keeps scope focused on the API/client split and keeps <code>TestClient</code> tests fast.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>

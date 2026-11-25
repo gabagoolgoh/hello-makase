@@ -17,7 +17,6 @@
   <meta name="makase-status" content="Approved">
   <meta name="makase-type" content="vision">
   <meta name="makase-id" content="000">
-  <meta name="makase-vision-origin" content="inferred">
   <link rel="stylesheet" href="assets/spec.css">
 </head>
 <body>
@@ -34,7 +33,7 @@
   <dl class="meta">
     <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
     <dt>Created</dt><dd>2026-11-24</dd>
-    <dt>Origin</dt><dd>Inferred by makase at onboarding, not written by a person</dd>
+    <dt>Amended</dt><dd id="am-2026-11-25-api-first-and-built-frontend">2026-11-25 — Move from server-rendered HTML and plain form posts to an API-first FastAPI backend with a separate built JS front end. <em>Open items named by this amendment: 001, 002, 003, 004, 005, 006, 007.</em></dd>
   </dl>
 
   <h2 id="concept">Concept</h2>
@@ -48,18 +47,16 @@
 
   <h2 id="quality">Look and feel / quality bar</h2>
   <p>
-    Every change is something you can see on the page and has a test that drives it the way a
-    browser would, with a form post, and checks the page that comes back. A card is done when
-    it works locally with <code>uv run uvicorn app.main:app</code> and the whole test suite
-    passes in a few seconds. Small and readable beats clever: a newcomer should understand any
-    route in a minute.
+    Every backend change has a <code>TestClient</code> test against the JSON API, and every
+    UI change is visible in the built JS front end. A card is done when the API and built
+    front end run locally and the test suite passes in a few seconds. Small and readable beats
+    clever: a newcomer should understand any route or component in a minute.
   </p>
 
   <h2 id="mechanism">How it works</h2>
   <p>
-    One FastAPI application lives in <code>app/main.py</code>. <code>GET /</code> renders the
-    page on the server from a Python string, escaping every title, and each action is a plain
-    HTML form that posts to a route and is answered with a redirect back to the page. The
+    One FastAPI application lives in <code>app/main.py</code> and exposes a JSON API for the
+    to-do list, consumed by a separate built JS front end. The
     to-dos are a list in memory, each with an id, a title and a <code>done</code> flag; a few
     are loaded at start, and nothing survives a restart. Tests in <code>tests/</code> use
     FastAPI's <code>TestClient</code>, so they run in process with no server, no browser and
@@ -89,8 +86,8 @@
     done</em> has merged.
   </p>
   <p>
-    Out of scope: a database, persistence across restarts, accounts, several lists, and a
-    built front end. This is a playground, and nothing here has to last.
+    Out of scope: a database, persistence across restarts, accounts, and several lists. This
+    is a playground, and nothing here has to last.
   </p>
 
   <h2 id="methodology">Methodology</h2>
@@ -103,10 +100,10 @@
 
   <h2 id="decisions">Key technical decisions</h2>
   <ul>
-    <li><strong>FastAPI, one server-rendered page</strong>: no JavaScript build and no template
-      engine, so a change is a route, a few lines of markup and a test.</li>
-    <li><strong>Plain form posts</strong>: every action works with no client code, and
-      <code>TestClient</code> can drive it exactly as a browser does.</li>
+    <li><strong>API-first FastAPI backend</strong>: FastAPI serves a JSON API rather than
+      server-rendered HTML, and <code>TestClient</code> tests the API directly.</li>
+    <li><strong>Built JS front end</strong>: a separate JavaScript build consumes the JSON
+      API and renders the to-do page in the browser.</li>
     <li><strong>In memory</strong>: no database to set up and tests stay fast; the cost is
       that nothing survives a restart.</li>
     <li><strong>uv with a committed lockfile</strong>: installs are reproducible, and makase's
