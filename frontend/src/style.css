@@ -1,0 +1,176 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 8px 12px;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  background: #f4f4f2;
+  color: #18181b;
+}
+
+#app {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.remaining {
+  margin: 0;
+  font-size: 11px;
+  color: #71717a;
+}
+
+.error {
+  margin: 0 0 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+}
+
+.error[hidden] {
+  display: none;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+}
+
+li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid #f4f4f5;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+li.done .title {
+  color: #a1a1aa;
+}
+
+.toggle {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  background: #ffffff;
+  border: 1.5px solid #a1a1aa;
+  border-radius: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+li.done .toggle {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+li.done .toggle::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid #ffffff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.edit,
+.delete {
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 11px;
+  color: #71717a;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+form.edit {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+}
+
+form.edit input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font: inherit;
+  background: #fafafa;
+  border: 1px solid #d4d4d8;
+  border-radius: 5px;
+}
+
+form.edit button {
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 11px;
+  color: #18181b;
+  background: #fafafa;
+  border: 1px solid #d4d4d8;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+form.add {
+  display: flex;
+  gap: 6px;
+}
+
+form.add input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  font: inherit;
+  background: #fafafa;
+  border: 1px solid #d4d4d8;
+  border-radius: 5px;
+}
+
+form.add button {
+  padding: 4px 10px;
+  font: inherit;
+  font-weight: 500;
+  color: #ffffff;
+  background: #2563eb;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}

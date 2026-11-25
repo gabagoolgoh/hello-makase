@@ -1,4 +1,4 @@
-# opens is here because makase opens a FastAPI app with no web/ at /docs, and this one's page is GET /.
-start = ".venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
+# Test installs and builds the front end, then serves the built UI and API from one FastAPI app.
+start = "npm --prefix frontend install --no-audit --no-fund && npm --prefix frontend run build && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 port = 8000
 opens = "/"
