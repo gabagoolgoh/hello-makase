@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tasks 009: Built JS front end</title>
-  <meta name="makase-status" content="Proposed">
+  <meta name="makase-status" content="Complete">
   <meta name="makase-type" content="code">
   <meta name="makase-id" content="009">
   <link rel="stylesheet" href="../assets/spec.css">
@@ -15,9 +15,12 @@
   <h1>Tasks 009: Built JS front end</h1>
 
   <dl class="meta">
-    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
     <dt>Spec</dt><dd><a href="spec.html">Built JS front end</a></dd>
   </dl>
+
+  <h2>What shipped</h2>
+  <p>Added a Vite-built vanilla JavaScript to-do page in <code>frontend/</code> that loads, adds, completes, undoes, edits, and deletes to-dos through the JSON API without page reloads, and FastAPI now serves that build at <code>/</code> with the old server-rendered form routes and helpers removed and the runbook building the front end before starting the server.</p>
 
 <table class="groups">
   <tr><td>A</td><td>Serve a Vite-built to-do UI and remove the server-rendered routes</td></tr>
