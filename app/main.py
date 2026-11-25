@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from itertools import count
 from typing import Annotated
 
-from fastapi import FastAPI, Form, HTTPException
+from fastapi import FastAPI, Form, HTTPException, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
+from pydantic import BaseModel, field_validator
 
 app = FastAPI(title="makase-todo")
 
@@ -158,6 +159,63 @@ def render(edit_id: int | None = None) -> str:
 """
 
 
+class TodoOut(BaseModel):
+    """One to-do as the JSON API serves it, with its title left exactly as stored."""
+
+    id: int
+    title: str
+    done: bool
+
+
+class TodoListOut(BaseModel):
+    """The whole list, in order, and how many are still open."""
+
+    todos: list[TodoOut]
+    remaining: int
+
+
+class TodoIn(BaseModel):
+    """A new to-do's title, trimmed, so a blank title is refused with 422."""
+
+    title: str
+
+    @field_validator("title")
+    @classmethod
+    def trimmed(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("A title cannot be blank.")
+        return cleaned
+
+
+class TodoPatch(BaseModel):
+    """The fields a PATCH may change, either or both, absent when not sent.
+
+    A ``title`` that arrives is trimmed the same way an Add's is, so a blank one is 422.
+    """
+
+    title: str | None = None
+    done: bool | None = None
+
+    @field_validator("title")
+    @classmethod
+    def trimmed(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("A title cannot be blank.")
+        return cleaned
+
+
+def find(todo_id: int) -> Todo:
+    """The to-do with that id, or a JSON 404 when it is not on the list."""
+    todo = next((one for one in todos if one.id == todo_id), None)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="There is no such to-do.")
+    return todo
+
+
 @app.get("/", response_class=HTMLResponse)
 def page(edit: str | None = None) -> str:
     """The to-do page. ``edit`` opens that row's editor when it names a to-do."""
@@ -231,6 +289,45 @@ def edit_title(todo_id: int, title: Annotated[str, Form()] = "") -> RedirectResp
     if cleaned:
         todo.title = cleaned
     return RedirectResponse("/", status_code=303)
+
+
+@app.get("/api/todos", response_model=TodoListOut)
+def api_list() -> TodoListOut:
+    """Every to-do in the order added, and how many are still open."""
+    return TodoListOut(
+        todos=[TodoOut(id=one.id, title=one.title, done=one.done) for one in todos],
+        remaining=sum(1 for one in todos if not one.done),
+    )
+
+
+@app.post("/api/todos", status_code=201, response_model=TodoOut)
+def api_create(body: TodoIn) -> TodoOut:
+    """Add a to-do from the JSON title, which the model already trimmed, and answer 201."""
+    todo = add(body.title)
+    return TodoOut(id=todo.id, title=todo.title, done=todo.done)
+
+
+@app.patch("/api/todos/{todo_id}", response_model=TodoOut)
+def api_update(todo_id: int, body: TodoPatch) -> TodoOut:
+    """Change one to-do's title and/or done flag. An unknown id is a JSON 404; a blank
+    title is a 422 that leaves the to-do as it was."""
+    todo = find(todo_id)
+    if body.title is not None:
+        todo.title = body.title
+    if body.done is not None:
+        todo.done = body.done
+    return TodoOut(id=todo.id, title=todo.title, done=todo.done)
+
+
+@app.delete("/api/todos/{todo_id}", status_code=204)
+def api_delete(todo_id: int) -> Response:
+    """Remove one to-do from the live list, answering 204. An unknown id is a JSON 404."""
+    todo = find(todo_id)
+    try:
+        todos.remove(todo)
+    except ValueError:  # another Delete removed it between the lookup and the removal
+        raise HTTPException(status_code=404, detail="There is no such to-do.") from None
+    return Response(status_code=204)
 
 
 reset()
