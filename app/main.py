@@ -58,9 +58,11 @@ def add(title: str) -> Todo:
 
 def item(todo: Todo) -> str:
     """One to-do's list item: a box that sets its state, its escaped title struck through
-    once it is done, and a *Delete* button after either one. The box is the row's Done or
-    Undo form, drawn as an empty or ticked checkbox and labelled with the title."""
+    once it is done, an *Edit* link after the title, and a *Delete* button after either
+    one. The box is the row's Done or Undo form, drawn as an empty or ticked checkbox and
+    labelled with the title."""
     title = html.escape(todo.title)
+    edit = f'<a class="edit" href="/?edit={todo.id}">Edit</a>'
     delete = (
         f'<form class="delete" method="post" action="/todos/{todo.id}/delete">'
         '<button type="submit">Delete</button></form>'
@@ -71,18 +73,33 @@ def item(todo: Todo) -> str:
             f'<button type="submit" role="checkbox" aria-checked="true" aria-label="{title}">'
             "&#9745;</button></form>"
         )
-        return f'      <li class="todo done">{box} <s>{title}</s> {delete}</li>'
+        return f'      <li class="todo done">{box} <s>{title}</s> {edit} {delete}</li>'
     box = (
         f'<form class="done" method="post" action="/todos/{todo.id}/done">'
         f'<button type="submit" role="checkbox" aria-checked="false" aria-label="{title}">'
         "&#9744;</button></form>"
     )
-    return f'      <li class="todo">{box} {title} {delete}</li>'
+    return f'      <li class="todo">{box} {title} {edit} {delete}</li>'
 
 
-def render() -> str:
-    """The whole page, as one HTML string."""
-    items = "\n".join(item(todo) for todo in todos)
+def edit_item(todo: Todo) -> str:
+    """One to-do's row while it is being edited: a form holding its title and Save/Cancel."""
+    title = html.escape(todo.title)
+    return (
+        f'      <li class="todo editing">'
+        f'<form class="edit" method="post" action="/todos/{todo.id}/edit">'
+        f'<input name="title" value="{title}" aria-label="Edit title">'
+        '<button type="submit">Save</button>'
+        '<a href="/">Cancel</a>'
+        "</form></li>"
+    )
+
+
+def render(edit_id: int | None = None) -> str:
+    """The whole page, as one HTML string. ``edit_id`` draws that row as an edit form."""
+    items = "\n".join(
+        edit_item(todo) if todo.id == edit_id else item(todo) for todo in todos
+    )
     left = sum(1 for todo in todos if not todo.done)
     count = "Nothing left" if left == 0 else f"{left} left"
     return f"""<!doctype html>
@@ -102,6 +119,9 @@ def render() -> str:
     form.done, form.undo {{ display: inline; margin-right: 0.4rem; }}
     form.done button, form.undo button {{ padding: 0 0.2rem; border: 1px solid currentColor; border-radius: 0.15rem; background: #ffffff; color: inherit; font: inherit; line-height: 1.2; cursor: pointer; }}
     form.delete {{ display: inline; margin-left: 0.5rem; }}
+    a.edit, form.edit {{ display: inline; margin-left: 0.5rem; }}
+    form.edit input {{ width: 12rem; }}
+    form.edit a {{ margin-left: 0.5rem; }}
   </style>
 </head>
 <body>
@@ -122,9 +142,15 @@ def render() -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-def page() -> str:
-    """The to-do page."""
-    return render()
+def page(edit: str | None = None) -> str:
+    """The to-do page. ``edit`` opens that row's editor when it names a to-do."""
+    edit_id: int | None = None
+    if edit is not None:
+        try:
+            edit_id = int(edit)
+        except ValueError:
+            edit_id = None
+    return render(edit_id)
 
 
 @app.post("/todos")
@@ -172,6 +198,21 @@ def delete(todo_id: int) -> RedirectResponse:
             todos.remove(todo)
         except ValueError:  # another Delete removed it between the lookup and the removal
             pass
+    return RedirectResponse("/", status_code=303)
+
+
+@app.post("/todos/{todo_id}/edit")
+def edit_title(todo_id: int, title: Annotated[str, Form()] = "") -> RedirectResponse:
+    """Replace one to-do's title with the trimmed form value, then send the browser back.
+
+    A blank title is ignored rather than refused, like Add. An unknown id is 404.
+    """
+    todo = next((one for one in todos if one.id == todo_id), None)
+    if todo is None:
+        raise HTTPException(status_code=404, detail="There is no such to-do.")
+    cleaned = title.strip()
+    if cleaned:
+        todo.title = cleaned
     return RedirectResponse("/", status_code=303)
 
 

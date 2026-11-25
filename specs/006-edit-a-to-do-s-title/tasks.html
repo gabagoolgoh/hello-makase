@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 006: Edit a to-do's title</title>
+  <meta name="makase-status" content="Complete">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="006">
+  <meta name="makase-depends-on" content="">
+  <meta name="makase-merge" content="ask">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 006: Edit a to-do's title</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Edit a to-do's title</a></dd>
+  </dl>
+
+  <h2>What shipped</h2>
+  <p>Every to-do row now has an <code>Edit</code> link that opens that row as an inline title form with Save and Cancel, and saving a non-blank title renames the to-do in place while keeping its id, its tick, its position and every other to-do unchanged.</p>
+
+<table class="groups">
+  <tr><td>A</td><td>Edit a to-do's title in place from a row link</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☑ <strong>A1. <code>tests/test_main.py</code>: add tests for cases 1&ndash;3 that every open and done row links to <code>/?edit={id}</code> after its title and before Delete while still holding exactly two forms, that <code>GET /?edit={id}</code> draws that row as one POST form to <code>/todos/{id}/edit</code> with a title input, Save and Cancel and no checkbox or Delete, and that every other row is unchanged; update the existing row-content assertions and helpers to expect the title then the Edit link between the box and Delete, and see the new and updated tests fail before the app changes.</strong><br>✓ <code>uv run pytest tests/test_main.py</code> over the eight A1 node ids: 8 failed before the app changed. The three new case tests and the five existing row tests that now require the Edit link all failed; the helpers strip the Edit link from title text so the title assertions stay title-only.</li>
+  <li data-group="A">☑ <strong>A2. <code>tests/test_main.py</code>: add tests for cases 4&ndash;10 and 13 that saving a title answers <code>303</code> to <code>/</code> and keeps the same id, position, done flag and order, stores a trimmed title, leaves the title unchanged for a blank or same title, preserves the tick and remaining count for done and open to-dos, answers <code>404</code> for an unknown or deleted id without changing any to-do, refuses <code>POST /todos/not-an-int/edit</code> with <code>422</code>, and leaves every other to-do unchanged; see them fail before the app changes.</strong><br>✓ <code>uv run pytest tests/test_main.py</code> over the eight A2 node ids: 7 failed and 1 passed before the app changed. The case 9 test for an unknown or deleted id passed from the start because the missing route already answers 404; the other seven failed on the missing route or the resulting 404 instead of 303/422.</li>
+  <li data-group="A">☑ <strong>A3. <code>tests/test_main.py</code>: add tests for cases 11 and 12 that <code>GET /?edit=</code> with an unknown, deleted or non-integer value draws the normal page with <code>200</code> and no row in edit mode, and that a title holding <code>&lt;</code>, <code>&amp;</code> or <code>"</code> is escaped in the edit input's value without breaking the attribute and after saving appears escaped in the row and the checkbox's <code>aria-label</code>; see them fail before the app changes.</strong><br>✓ <code>uv run pytest tests/test_main.py</code> over the two A3 node ids: 1 failed and 1 passed before the app changed. The case 11 test for a bad edit value passed from the start because the unchanged page ignores the query string; the case 12 escaping test failed because there is no edit input yet.</li>
+  <li data-group="A">☑ <strong>A4. <code>app/main.py</code>: in <code>item(todo)</code>, add a plain <code>&lt;a href="/?edit={id}"&gt;Edit&lt;/a&gt;</code> after the title and before the Delete form in both open and done rows, keeping each row at exactly two forms.</strong><br>✓ <code>uv run pytest tests/test_main.py</code> over the six A4 node ids: 6 passed after the Edit link landed. The link sits after the title and before Delete in both open and done rows, and each row still has exactly two forms.</li>
+  <li data-group="A">☑ <strong>A5. <code>app/main.py</code>: in <code>page()</code>, accept an optional <code>edit</code> query value as text so a bad value cannot produce <code>422</code>, and pass its parsed id when valid to <code>render()</code>; in <code>render()</code>, take an optional row id defaulting to none, draw that one row as a <code>method="post"</code> form to <code>/todos/{id}/edit</code> with an escaped <code>title</code> input labelled for screen readers, a Save submit button and a Cancel link to <code>/</code> but no checkbox or Delete, leave every other row as today, and add inline style making the Edit link and edit form sit in the row in the same quiet style as Delete.</strong><br>✓ <code>uv run pytest tests/test_main.py</code> over the three A5 node ids: 3 passed after the optional edit query and row form landed. The query is parsed as text so a bad value stays on the normal page, and the edited row renders one inline POST form with an escaped title input, Save and Cancel.</li>
+  <li data-group="A">☑ <strong>A6. <code>app/main.py</code>: add <code>POST /todos/{todo_id}/edit</code> taking form field <code>title</code>, trim it, replace the title only when something is left, answer <code>303</code> to <code>/</code> either way, and answer <code>404</code> without changing anything for an id not on the list.</strong><br>✓ <code>uv run pytest tests/test_main.py -k 'edit_case' -q</code>: 13 passed after the save route landed. The route trims the title, ignores a blank one, redirects 303 on every known id, and answers 404 for an unknown or deleted id.</li>
+</ol>
+
+</main>
+</body>
+</html>

@@ -130,6 +130,7 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
     assert "<s>" not in row
     assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
+    assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
     box_buttons = buttons_in(row_forms[0])
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
@@ -488,12 +489,14 @@ def visible_title_between_forms(row: str, box_form: str, delete_form: str) -> st
     """The title a browser shows between a row's box form and its Delete form.
 
     HTML comments and tags are dropped before decoding, so a title hidden in a comment, an
-    attribute, or the source generally does not count as visible title text.
+    attribute, or the source generally does not count as visible title text. The row's Edit
+    link is dropped too, so this returns the title alone rather than the title and Edit.
     """
     start = row.index(box_form) + len(box_form)
     between = row[start : row.index(delete_form, start)]
     without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
-    return html.unescape(re.sub(r"<[^>]+>", "", without_comments)).strip()
+    without_edit = re.sub(r"<a\b[^>]*>.*?</a>", "", without_comments, flags=re.DOTALL)
+    return html.unescape(re.sub(r"<[^>]+>", "", without_edit)).strip()
 
 
 def title_markup_between_forms(row: str, box_form: str, delete_form: str) -> str:
@@ -501,12 +504,14 @@ def title_markup_between_forms(row: str, box_form: str, delete_form: str) -> str
 
     Tags and comments are dropped but entities are left as written, so an ampersand or quote
     left raw in the visible title shows up instead of being silently decoded away. The box's
-    ``aria-label`` sits inside the box form, so it cannot satisfy this check.
+    ``aria-label`` sits inside the box form, so it cannot satisfy this check. The Edit link is
+    dropped as well, leaving the title's own markup.
     """
     start = row.index(box_form) + len(box_form)
     between = row[start : row.index(delete_form, start)]
     without_comments = re.sub(r"<!--.*?-->", "", between, flags=re.DOTALL)
-    return re.sub(r"<[^>]+>", "", without_comments).strip()
+    without_edit = re.sub(r"<a\b[^>]*>.*?</a>", "", without_comments, flags=re.DOTALL)
+    return re.sub(r"<[^>]+>", "", without_edit).strip()
 
 
 def remaining_count(page: str) -> str:
@@ -556,6 +561,39 @@ def posts_to(form: str, path: str) -> bool:
     """Whether ``form`` really posts to ``path``. A form with no method submits with GET."""
     attributes = form_attributes(form)
     return attributes.get("method", "").lower() == "post" and attributes.get("action") == path
+
+
+def links_in(fragment: str) -> list[str]:
+    """Each whole live ``<a ...>...</a>`` in a page fragment."""
+    return re.findall(r"<a\b[^>]*>.*?</a>", without_inert_markup(fragment), re.DOTALL)
+
+
+def link_attributes(link: str) -> dict[str, str]:
+    """The attributes on a link's opening tag, by their real names."""
+    opening = link[: link.index(">")]
+    pairs = re.findall(
+        r'''([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))''',
+        opening,
+    )
+    return {name.lower(): double or single or bare for name, double, single, bare in pairs}
+
+
+def link_text(link: str) -> str:
+    """The visible text of a link, with tags stripped and entities decoded."""
+    return html.unescape(re.sub(r"<[^>]+>", "", link)).strip()
+
+
+def assert_edit_link_between_forms(
+    row: str, box_form: str, delete_form: str, todo_id: int
+) -> None:
+    """A row carries one Edit link to its own edit page between its box and Delete."""
+    start = row.index(box_form) + len(box_form)
+    between = row[start : row.index(delete_form, start)]
+    edit_links = links_in(between)
+    assert len(edit_links) == 1, "the row should carry one Edit link between title and Delete"
+    attributes = link_attributes(edit_links[0])
+    assert attributes.get("href") == f"/?edit={todo_id}"
+    assert link_text(edit_links[0]) == "Edit"
 
 
 def tag_has_attribute(tag: str, name: str) -> bool:
@@ -765,6 +803,7 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
         "the reopened row should show its title as text, not only in the box label"
     )
+    assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
 
 
 def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
@@ -843,6 +882,7 @@ def test_case_3_every_row_is_box_then_title_then_delete() -> None:
         assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title, (
             "the title should be the visible text between the box and Delete"
         )
+        assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
 
 
 def test_case_4_no_row_shows_a_done_or_undo_button() -> None:
@@ -931,6 +971,7 @@ def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
     assert "<s>" not in row, "the reopened row should not be struck through"
     row_forms = forms_in(row)
     assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
+    assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
     assert remaining_count(page) == "5 left"
 
 
@@ -1004,6 +1045,7 @@ def test_case_8_each_box_labels_itself_with_the_escaped_title() -> None:
         assert title_markup_between_forms(row, row_forms[0], row_forms[1]) == html.escape(
             todo.title
         ), "the row should display the escaped title as text, not only in the box label"
+        assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
 
 
 def test_case_9_an_empty_list_shows_no_boxes_and_still_offers_add() -> None:
@@ -1117,3 +1159,305 @@ def test_case_5_page_styles_keep_a_newly_done_title_struck_through() -> None:
     page = client.get("/").text
     row = rendered_item(page, todo.title)
     assert_page_styles_keep_title_struck_through(page, row, todo.title)
+
+
+def test_edit_case_1_every_row_links_to_its_edit_form_between_title_and_delete() -> None:
+    """Case 1: every open and done row has an Edit link after its title and before Delete."""
+    main.add("Post the letter").done = True
+    page = client.get("/").text
+    assert any(one.done for one in main.todos)
+    assert any(not one.done for one in main.todos)
+
+    for todo in main.todos:
+        row = rendered_item(page, todo.title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2, f"{todo.title} should still have exactly two forms"
+        box_form = row_forms[0]
+        delete_form = row_forms[1]
+        edit_links = links_in(row)
+        assert len(edit_links) == 1, f"{todo.title} should have one Edit link"
+        edit_link = edit_links[0]
+        assert link_attributes(edit_link).get("href") == f"/?edit={todo.id}"
+        assert link_text(edit_link) == "Edit"
+        title_start = row.index(html.escape(todo.title), row.index(box_form) + len(box_form))
+        assert row.index(edit_link) > title_start, "Edit should follow the title"
+        assert row.index(edit_link) < row.index(delete_form), "Edit should precede Delete"
+
+
+def test_edit_case_2_a_row_opens_as_its_own_edit_form() -> None:
+    """Case 2: GET /?edit={id} draws that row as a POST edit form with no box or Delete."""
+    todo = main.add("Wash the car")
+
+    response = client.get("/", params={"edit": str(todo.id)})
+
+    assert response.status_code == 200
+    page = response.text
+    row = rendered_item(page, todo.title)
+    row_forms = forms_in(row)
+    assert len(row_forms) == 1, "the edited row should hold one form"
+    form = row_forms[0]
+    assert posts_to(form, f"/todos/{todo.id}/edit")
+    title_inputs = [
+        control
+        for control in input_controls_in(form)
+        if button_attributes(control).get("name") == "title"
+    ]
+    assert len(title_inputs) == 1, "the edit form should hold one title input"
+    title_input = title_inputs[0]
+    attributes = button_attributes(title_input)
+    assert attributes.get("value") == html.escape(todo.title)
+    assert attributes.get("aria-label"), "the title input should be labelled for screen readers"
+    save_buttons = buttons_in(form)
+    assert len(save_buttons) == 1, "the edit form should hold one Save button"
+    assert button_attributes(save_buttons[0]).get("type") == "submit"
+    assert button_text(save_buttons[0]) == "Save"
+    cancel_links = links_in(form)
+    assert len(cancel_links) == 1, "the edit form should hold one Cancel link"
+    assert link_attributes(cancel_links[0]).get("href") == "/"
+    assert link_text(cancel_links[0]) == "Cancel"
+    assert not any(
+        button_attributes(button).get("role") == "checkbox" for button in buttons_in(row)
+    ), "the edited row should show no checkbox"
+    assert not any(
+        posts_to(candidate, f"/todos/{todo.id}/delete") for candidate in forms_in(row)
+    ), "the edited row should show no Delete"
+    edit_forms = [
+        candidate
+        for candidate in forms_in(page)
+        if posts_to(candidate, f"/todos/{todo.id}/edit")
+    ]
+    assert len(edit_forms) == 1, "only one row should be in edit mode"
+
+
+def test_edit_case_3_every_other_row_is_unchanged_while_one_is_edited() -> None:
+    """Case 3: in an edit page every row except the edited one matches plain GET /."""
+    target = main.todos[1]
+    plain = client.get("/").text
+    edit_page = client.get("/", params={"edit": str(target.id)}).text
+    plain_rows = rendered_list_items(plain)
+    edit_rows = rendered_list_items(edit_page)
+    assert len(plain_rows) == len(main.todos)
+    assert len(edit_rows) == len(main.todos)
+
+    for todo in main.todos:
+        if todo is target:
+            continue
+        plain_row = next(row for row in plain_rows if html.escape(todo.title) in row)
+        edit_row = next(row for row in edit_rows if html.escape(todo.title) in row)
+        assert edit_row == plain_row
+
+    target_row = next(row for row in edit_rows if html.escape(target.title) in row)
+    target_forms = forms_in(target_row)
+    assert len(target_forms) == 1
+    assert posts_to(target_forms[0], f"/todos/{target.id}/edit")
+
+
+def test_edit_case_4_saving_a_new_title_keeps_its_id_and_place() -> None:
+    """Case 4: saving a title answers 303 to / and shows the new title in the same position."""
+    target = main.todos[2]
+    old_title = target.title
+    old_id = target.id
+    old_index = main.todos.index(target)
+
+    response = client.post(
+        f"/todos/{target.id}/edit", data={"title": "New title"}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert target.id == old_id
+    assert target.title == "New title"
+    assert main.todos.index(target) == old_index
+    page = client.get("/").text
+    assert "New title" in page
+    assert old_title not in page
+    assert rendered_titles(page, main.todos)[old_index] == "New title"
+
+
+def test_edit_case_5_saving_keeps_done_state_and_remaining_count() -> None:
+    """Case 5: renaming keeps a done to-do struck through and an open one open."""
+    done_todo = next(one for one in main.todos if one.done)
+    open_todo = next(one for one in main.todos if not one.done)
+    before_count = remaining_count(client.get("/").text)
+
+    for todo, new_title in ((done_todo, "Done renamed"), (open_todo, "Open renamed")):
+        was_done = todo.done
+        response = client.post(
+            f"/todos/{todo.id}/edit", data={"title": new_title}, follow_redirects=False
+        )
+        assert response.status_code == 303
+        assert response.headers["location"] == "/"
+        assert todo.done == was_done
+        page = client.get("/").text
+        row = rendered_item(page, new_title)
+        if was_done:
+            assert f"<s>{html.escape(new_title)}</s>" in row
+        else:
+            assert "<s>" not in row
+        assert remaining_count(page) == before_count
+
+
+def test_edit_case_6_saving_trims_spaces_around_the_title() -> None:
+    """Case 6: saving a title with spaces around it stores it trimmed."""
+    target = main.todos[0]
+
+    response = client.post(
+        f"/todos/{target.id}/edit", data={"title": "  Trimmed title  "}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert target.title == "Trimmed title"
+    page = client.get("/").text
+    assert "Trimmed title" in page
+    assert "  Trimmed title  " not in page
+
+
+def test_edit_case_7_a_blank_save_keeps_the_title() -> None:
+    """Case 7: a blank or all-spaces save answers 303 to / and leaves the title unchanged."""
+    target = main.todos[1]
+    original = target.title
+    before = [(one.id, one.title, one.done) for one in main.todos]
+
+    for blank in ("", "   ", "\t\n"):
+        response = client.post(
+            f"/todos/{target.id}/edit", data={"title": blank}, follow_redirects=False
+        )
+        assert response.status_code == 303
+        assert response.headers["location"] == "/"
+        assert target.title == original
+        assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+
+def test_edit_case_8_saving_the_same_title_changes_nothing() -> None:
+    """Case 8: saving the same title answers 303 to / and changes nothing."""
+    target = main.todos[2]
+    before = [(one.id, one.title, one.done) for one in main.todos]
+    before_page = client.get("/").text
+
+    response = client.post(
+        f"/todos/{target.id}/edit", data={"title": target.title}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+    assert client.get("/").text == before_page
+
+
+def test_edit_case_9_saving_an_unknown_or_deleted_id_is_404() -> None:
+    """Case 9: an id that is not on the list answers 404 and changes no to-do."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+    unknown = max(one.id for one in main.todos) + 1
+
+    response = client.post(
+        f"/todos/{unknown}/edit", data={"title": "Ghost"}, follow_redirects=False
+    )
+
+    assert response.status_code == 404
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+    deleted = main.add("Delete me")
+    client.post(f"/todos/{deleted.id}/delete", follow_redirects=False)
+    after_delete = [(one.id, one.title, one.done) for one in main.todos]
+
+    response = client.post(
+        f"/todos/{deleted.id}/edit", data={"title": "Ghost"}, follow_redirects=False
+    )
+
+    assert response.status_code == 404
+    assert [(one.id, one.title, one.done) for one in main.todos] == after_delete
+
+
+def test_edit_case_10_a_non_integer_edit_id_is_422() -> None:
+    """Case 10: /todos/not-an-int/edit is refused and leaves the to-dos unchanged."""
+    before = [(one.id, one.title, one.done) for one in main.todos]
+
+    response = client.post("/todos/not-an-int/edit", data={"title": "Nope"}, follow_redirects=False)
+
+    assert response.status_code == 422
+    assert [(one.id, one.title, one.done) for one in main.todos] == before
+
+
+def test_edit_case_11_a_bad_edit_value_draws_the_normal_page() -> None:
+    """Case 11: an unknown, deleted or non-integer edit value draws the normal page."""
+    never_existed = max(one.id for one in main.todos) + 100
+    deleted = main.add("Delete me")
+    client.post(f"/todos/{deleted.id}/delete", follow_redirects=False)
+
+    def assert_bad_edit_draws_normal_page(value: str) -> None:
+        plain = client.get("/")
+        response = client.get("/", params={"edit": value})
+        assert response.status_code == 200
+        assert response.text == plain.text
+        assert not any(
+            "/edit" in form_attributes(form).get("action", "")
+            for form in forms_in(response.text)
+        ), "the normal page should show no row in edit mode"
+
+    assert_bad_edit_draws_normal_page(str(never_existed))
+    assert_bad_edit_draws_normal_page(str(deleted.id))
+    assert_bad_edit_draws_normal_page("not-an-int")
+    assert_bad_edit_draws_normal_page("")
+
+
+def test_edit_case_12_an_escaped_title_stays_escaped_in_the_input_and_saved_row() -> None:
+    """Case 12: <, & and " stay escaped in the edit input and after saving."""
+    title = '<b>bold & "quoted"</b>'
+    todo = main.add(title)
+
+    response = client.get("/", params={"edit": str(todo.id)})
+
+    assert response.status_code == 200
+    page = response.text
+    row = rendered_item(page, title)
+    form = forms_in(row)[0]
+    title_input = next(
+        control
+        for control in input_controls_in(form)
+        if button_attributes(control).get("name") == "title"
+    )
+    attributes = button_attributes(title_input)
+    assert attributes.get("value") == html.escape(title)
+    assert attributes.get("aria-label"), "the title input should be labelled"
+    assert title not in page, "the raw title must not break the input attribute"
+
+    new_title = '<i>saved & "quoted"</i>'
+    saved = client.post(
+        f"/todos/{todo.id}/edit", data={"title": new_title}, follow_redirects=False
+    )
+
+    assert saved.status_code == 303
+    assert saved.headers["location"] == "/"
+    page = client.get("/").text
+    row = rendered_item(page, new_title)
+    assert html.escape(new_title) in row
+    assert new_title not in page
+    box_form = forms_in(row)[0]
+    box_buttons = buttons_in(box_form)
+    assert len(box_buttons) == 1
+    label = button_attributes(box_buttons[0]).get("aria-label")
+    assert label is not None
+    assert label == html.escape(new_title)
+    assert html.unescape(label) == new_title
+
+
+def test_edit_case_13_saving_one_title_leaves_every_other_unchanged() -> None:
+    """Case 13: saving one title leaves every other id, title, done flag and order unchanged."""
+    target = main.todos[2]
+    old_id = target.id
+    others = [(one.id, one.title, one.done) for one in main.todos if one is not target]
+    before_order = [one.id for one in main.todos]
+
+    response = client.post(
+        f"/todos/{target.id}/edit", data={"title": "Only this one"}, follow_redirects=False
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert target.id == old_id
+    assert target.title == "Only this one"
+    assert [(one.id, one.title, one.done) for one in main.todos if one is not target] == others
+    assert [one.id for one in main.todos] == before_order
+    page = client.get("/").text
+    assert rendered_titles(page, main.todos) == [one.title for one in main.todos]
