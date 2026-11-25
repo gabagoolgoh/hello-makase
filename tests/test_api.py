@@ -214,30 +214,17 @@ def test_a_missing_or_repeated_delete_is_404() -> None:
     assert snapshot() == after_first
 
 
-def test_the_page_and_the_api_share_one_list() -> None:
-    """Case 14: the HTML routes keep working and read and write the same in-memory list."""
-    page = client.get("/")
-    assert page.status_code == 200
-    assert page.headers["content-type"].startswith("text/html")
-
-    form_add = client.post(
-        "/todos", data={"title": "Fix the bike"}, follow_redirects=False
-    )
-    assert form_add.status_code == 303
-    given_id = next(
-        todo["id"] for todo in listed()["todos"] if todo["title"] == "Fix the bike"
-    )
+def test_the_api_works_over_the_shared_in_memory_list() -> None:
+    """Case 14: the API reads and writes the same in-memory list the app holds."""
+    assert [todo["id"] for todo in listed()["todos"]] == [todo.id for todo in main.todos]
 
     created = client.post("/api/todos", json={"title": "Fix the chain"}).json()
-    assert "Fix the chain" in client.get("/").text
+    assert next(todo for todo in main.todos if todo.id == created["id"]).title == (
+        "Fix the chain"
+    )
 
-    for path, expected_done in (
-        (f"/todos/{created['id']}/done", True),
-        (f"/todos/{created['id']}/undo", False),
-    ):
-        assert client.post(path, follow_redirects=False).status_code == 303
-        served = next(todo for todo in listed()["todos"] if todo["id"] == created["id"])
-        assert served["done"] is expected_done
+    client.patch(f"/api/todos/{created['id']}", json={"done": True})
+    assert next(todo for todo in main.todos if todo.id == created["id"]).done is True
 
-    assert client.post(f"/todos/{given_id}/delete", follow_redirects=False).status_code == 303
-    assert given_id not in [todo["id"] for todo in listed()["todos"]]
+    assert client.delete(f"/api/todos/{created['id']}").status_code == 204
+    assert created["id"] not in [todo.id for todo in main.todos]

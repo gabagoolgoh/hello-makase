@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 009: Built JS front end</title>
+  <meta name="makase-status" content="Complete">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="009">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 009: Built JS front end</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Built JS front end</a></dd>
+  </dl>
+
+  <h2>What shipped</h2>
+  <p>Added a Vite-built vanilla JavaScript to-do page in <code>frontend/</code> that loads, adds, completes, undoes, edits, and deletes to-dos through the JSON API without page reloads, and FastAPI now serves that build at <code>/</code> with the old server-rendered form routes and helpers removed and the runbook building the front end before starting the server.</p>
+
+<table class="groups">
+  <tr><td>A</td><td>Serve a Vite-built to-do UI and remove the server-rendered routes</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☑ <strong>A1. Replace <code>tests/test_main.py</code> with failing tests for cases 1&ndash;3 that <code>npm run build</code> in <code>frontend/</code> writes <code>dist/index.html</code> plus assets, <code>GET /</code> answers <code>200</code> <code>text/html</code> with the built index and <code>/assets/</code> files answer <code>200</code>, and the old form routes <code>POST /todos</code>, <code>/todos/{id}/done</code>, <code>/undo</code>, <code>/edit</code> and <code>/delete</code> answer <code>404</code> or <code>405</code>.</strong><br>✓ <code>uv run pytest tests/test_main.py tests/test_frontend.py -q</code>: the three new server tests errored before the front end existed, with <code>npm install</code> failing on the missing <code>frontend/package.json</code>; their case names and an inventory list of the five old form routes are in place.</li>
+  <li data-group="A">☑ <strong>A2. Add a jsdom-backed frontend test harness plus <code>tests/test_frontend.py</code> that runs it under <code>uv run pytest</code>, with failing tests for cases 4&ndash;11 covering startup rendering and the remaining count, add and blank-title rejection, complete and undo, edit with cancel and blank-save rejection, delete, literal HTML titles, and a visible error on <code>404</code>/<code>422</code> without clearing the list.</strong><br>✓ <code>uv run pytest tests/test_frontend.py -q</code>: the wrapper failed before the front end existed because <code>npm install</code> had no <code>frontend/package.json</code>; it holds the jsdom suite for cases 4&ndash;11 in <code>frontend/test/app.test.mjs</code> and runs it with <code>node --test test/app.test.mjs</code> from <code>frontend/</code>.</li>
+  <li data-group="A">☑ <strong>A3. Add the Vite scaffold in <code>frontend/package.json</code>, <code>frontend/vite.config.js</code> and <code>frontend/index.html</code> with <code>build</code>/<code>dev</code> scripts and an <code>/api</code> proxy to <code>http://127.0.0.1:8000</code>, and add <code>frontend/node_modules/</code> and <code>frontend/dist/</code> to <code>.gitignore</code>; see <code>npm run build</code> produce the built entry and assets.</strong><br>✓ <code>npm install --no-audit --no-fund</code> added 43 packages, then <code>npm run build</code> exited 0 and wrote <code>frontend/dist/index.html</code> and <code>frontend/dist/assets/index-P2Xu9kJm.js</code>; <code>package-lock.json</code> records the installed versions.</li>
+  <li data-group="A">☑ <strong>A4. Add <code>frontend/src/style.css</code> reproducing the single-card layout, flex rows and dividers, CSS checkbox states, quiet Edit/Delete controls, inline edit row and accented Add button from the current page.</strong><br>✓ <code>npm run build</code> exited 0 and emitted <code>dist/assets/index-BnHesRQY.css</code> beside the entry and script; <code>main.js</code> imports the stylesheet.</li>
+  <li data-group="A">☑ <strong>A5. Add <code>frontend/src/main.js</code> startup, add, complete and undo behaviour: fetch and render <code>GET /api/todos</code> with titles as plain text and the exact remaining wording, post trimmed non-blank titles and append the returned item, and patch <code>{"done": !todo.done}</code> while updating the row and counter.</strong><br>✓ <code>cd frontend && node --test --test-name-pattern="case [4-7]" test/app.test.mjs</code>: 4 passed for startup rendering, add, blank rejection, complete and undo. The client lives in <code>frontend/src/app.js</code>, with <code>main.js</code> importing the stylesheet and starting it; the test fake was corrected so it stops duplicating the item the app appends.</li>
+  <li data-group="A">☑ <strong>A6. Add the remaining <code>frontend/src/main.js</code> interactions: inline Edit with prefilled title, Save using a trimmed non-blank <code>PATCH</code> title, Cancel without a request, Delete via <code>DELETE</code> that removes the row and updates the counter, and a visible error message on failed requests that keeps the list intact.</strong><br>✓ <code>cd frontend && node --test test/app.test.mjs</code>: 8 passed, cases 4&ndash;11. Edit keeps a blank save in the editor without a <code>PATCH</code>, and a failed delete or add leaves the list unchanged with a visible error; the test's edit-row lookup was corrected to find the row by id because an input's value is not text content.</li>
+  <li data-group="A">☑ <strong>A7. Change <code>app/main.py</code> to remove <code>item()</code>, <code>edit_item()</code>, <code>render()</code>, <code>page()</code> and every <code>POST /todos*</code> form route, then mount <code>frontend/dist</code> at <code>/</code> after the <code>/api</code> routes so <code>GET /</code> and built assets are served.</strong><br>✓ <code>uv run pytest tests/test_main.py -q</code>: 3 passed for the build output, <code>GET /</code> plus assets, and all five old form routes answering <code>404</code>/<code>405</code>. The server imports <code>StaticFiles</code>, uses a <code>DIST</code> path beside <code>app/</code>, and mounts it with <code>check_dir=False</code> so import succeeds before the build exists.</li>
+  <li data-group="A">☑ <strong>A8. Update the one cross-surface test in <code>tests/test_api.py</code> that posts to the removed HTML form routes so the API cases continue to pass unchanged in substance against the shared list.</strong><br>✓ <code>uv run pytest tests/test_api.py -q</code>: 14 passed. The old cross-surface test now checks that listing, creating, patching and deleting through the API change the same <code>main.todos</code> list rather than posting to the removed form routes; every other API test is unchanged.</li>
+  <li data-group="A">☑ <strong>A9. Update <code>makase-runbook.toml</code> so <em>Test</em> installs and builds <code>frontend/</code> before starting <code>uvicorn app.main:app</code> on port <code>8000</code>, keeping <code>opens = "/"</code>.</strong><br>✓ <code>uv run python -c 'import tomllib; ...'</code> parsed the runbook and confirmed <code>opens == "/"</code>, then <code>npm --prefix frontend install --no-audit --no-fund && npm --prefix frontend run build</code> exited 0 and rebuilt <code>dist/index.html</code> with its CSS and script assets.</li>
+  <li data-group="A">☑ <strong>A10. Run the frontend build and tests and <code>uv run pytest</code>, and fix any failures until the built UI, removed routes, API suite and client interactions are all verified.</strong><br>✓ <code>uv run pytest tests/test_main.py tests/test_api.py tests/test_frontend.py -q</code>: 18 passed. That run rebuilt <code>frontend/dist</code>, ran the 8 jsdom client cases through <code>tests/test_frontend.py</code>, and passed the 3 server and 14 API tests; <code>ruff</code> and <code>mypy</code> are not configured in this project, so no lint or type check ran.</li>
+</ol>
+
+</main>
+</body>
+</html>
