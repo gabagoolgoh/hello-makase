@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 008: JSON to-do API</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="008">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 008: JSON to-do API</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">JSON to-do API</a></dd>
+  </dl>
+
+<table class="groups">
+  <tr><td>A</td><td>Add a JSON to-do API under /api/todos beside the HTML routes</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☐ <strong>A1. New <code>tests/test_api.py</code> with <code>TestClient(main.app)</code> and an autouse fixture calling <code>main.reset()</code>: add tests for cases 1&ndash;5 that <code>GET /api/todos</code> answers <code>200</code> with the five starters in insertion order and <code>remaining: 4</code>, and with <code>{"todos": [], "remaining": 0}</code> once the list is emptied, that <code>POST /api/todos</code> with <code>{"title": "  Fix the bike  "}</code> answers <code>201</code> with a trimmed title, <code>done: false</code> and an unused id and that the next <code>GET</code> lists it with <code>remaining: 5</code>, and that a blank title, a missing <code>title</code>, or an unparseable JSON body each answers a <code>422</code> JSON <code>detail</code> and leaves <code>todos</code> unchanged; see them fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A2. <code>tests/test_api.py</code>: add tests for cases 6&ndash;11 that <code>PATCH /api/todos/{id}</code> with <code>{"done": true}</code> on an open item answers <code>200</code> with <code>done: true</code> and lowers <code>remaining</code>, with <code>{"done": false}</code> on a done item restores it and raises <code>remaining</code>, that repeating either flag on an item already in that state stays <code>200</code> and changes nothing else, that <code>{"title": "  &lt;b&gt;New title&lt;/b&gt;  "}</code> stores the trimmed raw unescaped title and leaves <code>done</code> and id alone, that a blank or whitespace-only title answers <code>422</code> JSON <code>detail</code> and keeps the old title, and that an unknown id answers <code>404</code> JSON <code>detail</code>; see them fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A3. <code>tests/test_api.py</code>: add tests for cases 12&ndash;13 that <code>DELETE /api/todos/{id}</code> answers <code>204</code> with an empty body, the item disappears from the next <code>GET</code>, every other item keeps its id, title, flag and order, and a later <code>POST</code> gets an id that was never handed out before, and that an unknown id and a repeated delete of the same id both answer <code>404</code> JSON <code>detail</code>; see them fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A4. <code>tests/test_api.py</code>: add a test for case 14 that the HTML routes still answer as before while sharing the one in-memory list &mdash; <code>GET /</code> is <code>200</code> HTML, a form <code>POST /todos</code> redirects <code>303</code> and the added title then shows in <code>GET /api/todos</code>, an API <code>POST</code> then shows on <code>GET /</code>, and a form done/undo/delete changes what the API reports &mdash; and confirm <code>tests/test_main.py</code> is untouched; see it fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A5. <code>app/main.py</code>: add Pydantic request and response models for a to-do, a create body and a partial-update body, and the <code>GET /api/todos</code> and <code>POST /api/todos</code> handlers over the existing <code>todos</code> list and <code>add()</code>, returning the serialized item, the <code>remaining</code> count and <code>422</code> for missing or blank titles, with every existing HTML and form route left unchanged.</strong></li>
+  <li data-group="A">☐ <strong>A6. <code>app/main.py</code>: add the <code>PATCH /api/todos/{todo_id}</code> and <code>DELETE /api/todos/{todo_id}</code> handlers that look the item up in <code>todos</code>, answer <code>404</code> for an unknown id, trim and reject a blank new title with <code>422</code> without touching the item, set <code>done</code> either way, remove the item in place, and answer <code>200</code> with the item or <code>204</code>, then run <code>uv run pytest</code> and see the new suite and the untouched existing suite green.</strong></li>
+</ol>
+
+</main>
+</body>
+</html>
