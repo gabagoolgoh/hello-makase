@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 007: Refresh UI with card layout</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="007">
+  <meta name="makase-depends-on" content="006">
+  <meta name="makase-merge" content="auto">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 007: Refresh UI with card layout</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Refresh UI with card layout</a></dd>
+  </dl>
+
+<table class="groups">
+  <tr><td>A</td><td>Refresh the to-do page with a card layout and CSS checkboxes</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☐ <strong>A1. <code>tests/test_main.py</code>: update every existing <code>☐</code>/<code>☑</code> expectation to require both glyphs absent, add cases 1&ndash;3 tests for glyph-free open and done boxes and for the card, bulletless dividers, flex rows, CSS checkbox states, quiet controls and accented <em>Add</em> button, and add case 4 and 11 assertions for row order, missing <em>Done</em>/<em>Undo</em> text, and escaped titles in open, done, edit and <code>aria-label</code> positions; see them fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A2. <code>tests/test_main.py</code>: update and add cases 5&ndash;10 tests for submitting and resubmitting rendered boxes, adding non-blank and blank titles, opening an edit row and saving or cancelling it with the visible title and <code>aria-label</code> kept in step, deleting through to an empty list that still offers <em>Add</em>, and unknown, deleted or non-integer ids returning <code>404</code>, <code>422</code>, or the normal page; see them fail before the app changes.</strong></li>
+  <li data-group="A">☐ <strong>A3. <code>app/main.py</code>: in <code>item()</code>, remove the <code>☐</code>/<code>☑</code> glyphs from the checkbox buttons while keeping the <code>done</code>/<code>undo</code> POST forms, <code>role="checkbox"</code>, <code>aria-checked</code>, escaped <code>aria-label</code>, <code>todo</code>/<code>todo done</code> classes, <code>&lt;s&gt;</code> titles, title wrapper, and title then Edit then Delete order.</strong></li>
+  <li data-group="A">☐ <strong>A4. <code>app/main.py</code>: in <code>render()</code>, replace the inline style block with a muted page and soft card, bulletless divided flex rows, a CSS-drawn checkbox and checked state, quiet Edit/Delete controls, an inline edit form that fits the row, and an accented <em>Add</em> button while preserving <code>line-through</code> for done titles.</strong></li>
+</ol>
+
+</main>
+</body>
+</html>
