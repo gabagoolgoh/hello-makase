@@ -1,0 +1,28 @@
+<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; form-action 'none'; base-uri 'none'"><meta name="color-scheme" content="light dark"><style>html,body{margin:0;height:100%;overflow:hidden!important}</style></head><body><style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 13px; background: #f4f4f2; color: #18181b; }
+  .card { max-width: 32rem; margin: 0 auto; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 8px; padding: 8px 12px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }
+  h1 { font-size: 1.1rem; margin: 0; }
+  .rem { margin: 0; font-size: 11px; color: #71717a; }
+  ul { list-style: none; padding: 0; margin: 0 0 8px; }
+  li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f4f4f5; }
+  .chk { width: 15px; height: 15px; padding: 0; border: 1.5px solid #a1a1aa; border-radius: 4px; background: #fff; position: relative; flex-shrink: 0; }
+  .chk.done { background: #2563eb; border-color: #2563eb; }
+  .chk.done::after { content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .txt { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  li.is-done .txt { color: #a1a1aa; text-decoration: line-through; }
+  .del { font: inherit; font-size: 11px; padding: 1px 6px; border: none; border-radius: 4px; background: transparent; color: #71717a; flex-shrink: 0; }
+  .add { display: flex; gap: 6px; }
+  .add input { flex: 1; min-width: 0; font: inherit; padding: 4px 8px; border: 1px solid #d4d4d8; border-radius: 5px; background: #fafafa; }
+  .add button { font: inherit; font-weight: 500; padding: 4px 10px; border: none; border-radius: 5px; background: #2563eb; color: #fff; }
+</style>
+<div class="card">
+  <div class="head"><h1>To-dos</h1><p class="rem">2 left</p></div>
+  <ul>
+    <li class="is-done"><button type="button" class="chk done" aria-label="Buy milk"></button><span class="txt">Buy milk</span><button type="button" class="del">Delete</button></li>
+    <li><button type="button" class="chk" aria-label="Water plants"></button><span class="txt">Water plants</span><button type="button" class="del">Delete</button></li>
+    <li><button type="button" class="chk" aria-label="Call dentist"></button><span class="txt">Call dentist</span><button type="button" class="del">Delete</button></li>
+  </ul>
+  <div class="add"><input value="" placeholder="What needs doing?" readonly><button type="button">Add</button></div>
+</div></body></html>

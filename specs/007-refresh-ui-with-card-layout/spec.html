@@ -1,0 +1,218 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 007: Refresh UI with card layout</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="007">
+  <meta name="makase-walk" content="short">
+  <meta name="makase-walk-says" content="short: rated 3 of 5 by claude-haiku-5-5. The visual choices are already settled, but the item depends on unlanded item 006, touches the row markup, the inline style block, and many test cases, and the edit-row fit inside the card needs judgment.">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="006">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="auto">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<!--
+  Everything visual comes from assets/spec.css — never inline CSS here.
+  Class vocabulary it provides, all optional beyond .doc / .meta / .badge:
+
+    .subtitle    serif italic standfirst under the h1
+    .eyebrow     small mono uppercase label; sits above a heading or opens a card
+    .tldr        boxed lead summary — the "read this if nothing else" block
+    .note        accent callout        .warn-box  caution callout
+    .verdict     bordered conclusion box, heavier than .note
+    blockquote   serif pull-quote; put attribution in a <cite>
+    .cards/.card responsive card grid (h4 titles)
+    .scroll-x    wrapper for any wide table
+    .chip        inline status pill for table cells (.ok / .warn / .stop)
+    ol.decisions the decision list
+    figure.chart inline SVG chart: .chart-title, .chart-sub, .chart-legend,
+                 .chart-scroll, a <details> table view, and the --viz-* colour
+                 roles (validated for colour-vision safety — see spec.css)
+    .mock-*      board/card UI mockups — UI workshop docs only, never drawn in
+                 a spec's prose; full vocabulary in spec.css's "UI mockups" block
+    .look-frame  one of the two pictures a spec may carry: the look its
+                 brainstorm picked, which makase places in its own "The picked
+                 look" section as a frame onto look.html beside the spec.
+    .diagram-frame  the other: the diagram its brainstorm drew of the
+                 architecture, which makase places in its own "The drawn
+                 diagram" section as a frame onto diagram.html beside the
+                 spec. makase places both; neither is ever written by hand,
+                 and neither is ever a picture nobody saw.
+-->
+<main class="doc">
+
+  <h1>Spec 007: Refresh UI with card layout</h1>
+  <p class="subtitle">Restyles the to-do page as a soft card with divider rows, quiet controls, and a clean CSS checkbox.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Approved</dt><dd>2026-11-25</dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-25</dd>
+    <dt>Depends on</dt><dd>006</dd>
+    <dt>Merge</dt><dd>pre-approved</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>Each to-do row starts with one crisp checkbox button with no list bullet or double border, aligned cleanly with its title and quiet row actions. Ticking, unticking, editing, deleting, and adding all continue to work through plain HTML forms with screen-reader checkbox roles and labels preserved.</p>
+
+  <h2>What</h2>
+  <p>
+    Today <code>app/main.py</code> renders the page on a plain white background with a bulleted
+    <code>&lt;ul&gt;</code>, where each row&rsquo;s checkbox puts a <code>&#9744;</code> or
+    <code>&#9745;</code> character inside a second bordered <code>&lt;button&gt;</code>. This
+    item refreshes the page to match <em>The picked look</em> (option c: &ldquo;Give the whole
+    page a soft card layout with row dividers and an accented Add button&rdquo;): a soft card
+    surface over a muted page background, a bullet-free list with horizontal dividers between
+    rows, aligned row items, quiet row actions, and an accented <em>Add</em> button.
+  </p>
+  <p>
+    Every to-do row keeps its plain HTML form structure: the checkbox remains an enabled
+    <code>&lt;button type="submit"&gt;</code> inside <code>form.done</code> (posting to
+    <code>/todos/{id}/done</code>) for open items and <code>form.undo</code> (posting to
+    <code>/todos/{id}/undo</code>) for done items, carrying <code>role="checkbox"</code>,
+    <code>aria-checked="false"</code> or <code>"true"</code>, and <code>aria-label</code> set
+    to the HTML-escaped title. Instead of placing <code>&#9744;</code> or <code>&#9745;</code>
+    inside a bordered button, the button has no box-glyph text and is drawn directly in CSS as
+    one crisp square box with a CSS-drawn checked state when done.
+  </p>
+  <p>
+    Rows lay out horizontally with flex alignment so the checkbox, title, and trailing row
+    actions align cleanly even when titles wrap. Because this item rests on
+    <em>006 &mdash; Edit a to-do&rsquo;s title</em>, each normal row carries the checkbox form,
+    its title (wrapped in <code>&lt;s&gt;...&lt;/s&gt;</code> when done, with no page style
+    cancelling <code>line-through</code>), the quiet <em>Edit</em> link
+    (<code>&lt;a href="/?edit={id}"&gt;</code>), and the quiet <em>Delete</em> form
+    (<code>form.delete</code> posting to <code>/todos/{id}/delete</code>). When a row is open
+    in edit mode via <code>GET /?edit={id}</code>, its inline edit form (text input,
+    <em>Save</em> button, and <em>Cancel</em> link to <code>/</code>) fits cleanly inside the
+    card row without overflowing or breaking row dividers. When the list is empty, the card
+    renders no list rows and still displays <code>Nothing left</code> and the accented
+    <em>Add</em> form.
+  </p>
+  <p>
+    This item does <strong>not</strong> add JavaScript, native
+    <code>&lt;input type="checkbox"&gt;</code> controls, toggle routes, static CSS asset
+    files, persistence, or any change to routes, status codes, ids, or remaining-count text.
+  </p>
+
+  <p class="note">
+    <strong>Merge gate check (by hand):</strong> open the to-do page in <em>Test</em> and
+    compare it with <em>The picked look</em>: confirm the soft card layout, absence of list
+    bullets, clean row dividers, crisp single-border CSS checkboxes in open and done states,
+    aligned titles with quiet <em>Edit</em> and <em>Delete</em> controls, an inline edit row
+    when clicking <em>Edit</em>, and the accented <em>Add</em> button.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>app/main.py</code> (confirmed by reading), <code>item(todo: Todo)</code> and the
+      edit-mode row branch planned in item <code>006</code> (from
+      <code>specs/006-edit-a-to-do-s-title/spec.html</code>, not yet present in
+      <code>app/main.py</code>): remove <code>&#9744;</code> and <code>&#9745;</code> from the
+      checkbox <code>&lt;button type="submit"&gt;</code> while keeping
+      <code>role="checkbox"</code>, <code>aria-checked</code>, <code>aria-label</code>,
+      <code>class="todo"</code> / <code>class="todo done"</code>, <code>&lt;s&gt;</code>
+      around done titles, one HTML source line per <code>&lt;li&gt;</code>, and the row DOM
+      order (checkbox form, title, <em>Edit</em> link, <em>Delete</em> form).</li>
+    <li><code>app/main.py</code> (confirmed by reading), <code>render()</code>: update the
+      inline <code>&lt;style&gt;</code> block to match <em>The picked look</em> (soft card
+      surface, bulletless list with row dividers, flex row alignment, CSS-drawn checkbox box
+      and checked indicator, quiet <em>Edit</em>/<em>Delete</em> controls, inline edit-row
+      alignment, and accented <em>Add</em> button) without removing <code>line-through</code>
+      from <code>&lt;s&gt;</code>.</li>
+    <li><code>tests/test_main.py</code> (confirmed by reading): update existing item
+      <code>005</code> assertions that check for literal <code>&#9744;</code> /
+      <code>&#9745;</code> (<code>☐</code> / <code>☑</code>) text inside the checkbox button,
+      and add tests for the numbered cases below.</li>
+    <li>Must not change: <code>GET /</code>, <code>POST /todos</code>,
+      <code>POST /todos/{todo_id}/done</code>, <code>POST /todos/{todo_id}/undo</code>,
+      <code>POST /todos/{todo_id}/delete</code>, item <code>006</code>&rsquo;s
+      <code>POST /todos/{todo_id}/edit</code> and <code>GET /?edit=</code> behaviour, HTTP
+      status codes, <code>Todo</code>, <code>STARTERS</code>, <code>add()</code>,
+      <code>reset()</code>, <code>next_id</code>, list order, remaining-count wording, and
+      HTML escaping.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li>On <code>GET /</code>, every open row renders <code>&lt;li class="todo"&gt;</code> starting with a <code>method="post"</code> form to <code>/todos/{id}/done</code> containing one enabled <code>&lt;button type="submit" role="checkbox" aria-checked="false"&gt;</code> labelled with the title and containing neither <code>&#9744;</code> nor <code>&#9745;</code>.</li>
+    <li>On <code>GET /</code>, every done row renders <code>&lt;li class="todo done"&gt;</code> starting with a <code>method="post"</code> form to <code>/todos/{id}/undo</code> containing one enabled <code>&lt;button type="submit" role="checkbox" aria-checked="true"&gt;</code> labelled with the title, containing neither <code>&#9744;</code> nor <code>&#9745;</code>, and displaying its title inside <code>&lt;s&gt;...&lt;/s&gt;</code> with no page CSS cancelling <code>line-through</code>.</li>
+    <li>The page&rsquo;s <code>&lt;style&gt;</code> block suppresses list bullets (<code>list-style: none</code>), lays out rows as aligned flex items with dividers, styles the card container, CSS checkbox states, quiet row controls, and accented <em>Add</em> button, and adds no native <code>&lt;input type="checkbox"&gt;</code>.</li>
+    <li>Every non-editing row keeps the DOM order checkbox form, visible title, <em>Edit</em> link (<code>href="/?edit={id}"</code>), and <em>Delete</em> form (<code>method="post" action="/todos/{id}/delete"</code>), with no visible <em>Done</em> or <em>Undo</em> button text.</li>
+    <li>Submitting an open row&rsquo;s rendered checkbox form (<code>POST /todos/{id}/done</code>) returns <code>303</code> to <code>/</code> and reloads with <code>aria-checked="true"</code>, <code>&lt;s&gt;</code> strike-through, and remaining count down by one; submitting a done row&rsquo;s checkbox form (<code>POST /todos/{id}/undo</code>) returns <code>303</code> to <code>/</code> and reloads with <code>aria-checked="false"</code>, no <code>&lt;s&gt;</code>, and remaining count up by one.</li>
+    <li>Submitting the same rendered open or done checkbox form twice leaves the to-do in the state that form named, never toggling it back.</li>
+    <li>Submitting a non-blank title through the <em>Add</em> form (<code>POST /todos</code>) returns <code>303</code> to <code>/</code> and renders a new unchecked CSS checkbox row with <em>Edit</em> and <em>Delete</em> while raising the remaining count by one; submitting a blank or whitespace-only title redirects <code>303</code> to <code>/</code> with the list and count unchanged.</li>
+    <li>Requesting <code>GET /?edit={id}</code> renders only that row as a <code>method="post"</code> form to <code>/todos/{id}/edit</code> with the title input, <em>Save</em>, and <em>Cancel</em> (and no checkbox or <em>Delete</em>) while every other row keeps its refreshed markup; saving a new title answers <code>303</code> to <code>/</code> and updates both the visible title and the checkbox <code>aria-label</code>, while saving a blank title or clicking <em>Cancel</em> leaves title and tick unchanged.</li>
+    <li>Submitting a row&rsquo;s <em>Delete</em> form (<code>POST /todos/{id}/delete</code>) returns <code>303</code> to <code>/</code> and removes the row; deleting every to-do leaves an empty <code>&lt;ul&gt;</code> with no <code>&lt;li&gt;</code> rows, no checkbox buttons, <code>Nothing left</code>, and a working <em>Add</em> form.</li>
+    <li>Posting to <code>/todos/{id}/done</code>, <code>/undo</code>, or <code>/edit</code> for an unknown or deleted id returns <code>404</code> (while <code>/delete</code> redirects <code>303</code>), posting a non-integer id returns <code>422</code>, and requesting <code>GET /?edit=</code> with an unknown, deleted, or non-integer id returns <code>200</code> with the normal card list and no row in edit mode.</li>
+    <li>A title containing <code>&lt;</code>, <code>&amp;</code>, and <code>"</code> stays HTML-escaped in the visible title (open and done), the edit input value, and the checkbox&rsquo;s <code>aria-label</code> attribute without breaking markup.</li>
+  </ol>
+
+  <h2 id="look">The picked look: Give the whole page a soft card layout with row dividers and an accented Add button</h2>
+  <p>Picked in the brainstorm: option c, <strong>Give the whole page a soft card layout with row dividers and an accented Add button</strong>, of question 1, “How far should this visual pass go?”. makase placed it exactly as it was drawn; its source is <a href="look.html"><code>look.html</code></a>, beside this file. The build matches its layout, hierarchy, placement and token values, not its pixels, and its text is placeholder.</p>
+  <iframe class="look-frame" src="look.html" sandbox="" width="640" height="200" title="The picked look: Give the whole page a soft card layout with row dividers and an accented Add button"></iframe>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Soft card layout with row dividers and accented Add button (<code>1/1/c</code>)</strong>: the operator picked option c from the three previewed levels of polish (<em>The picked look</em>); rejected option a (checkbox and bullets only on a plain page) and option b (row alignment and controls on a plain white page, recommended by makase) because the operator wanted the full card framing and accented <em>Add</em> button.</li>
+    <li><strong>CSS-styled checkbox button instead of <code>&#9744;</code>/<code>&#9745;</code> glyphs or native inputs</strong>: keeps the button as a plain HTML <code>&lt;button type="submit"&gt;</code> inside <code>form.done</code>/<code>form.undo</code> with <code>role="checkbox"</code>, <code>aria-checked</code>, and <code>aria-label</code> while eliminating the double border and cross-font glyph mismatch; rejected keeping Unicode glyphs inside a bordered button (clunky double border) and rejected <code>&lt;input type="checkbox"&gt;</code> with JavaScript submit (violates the no-JS plain-form rule).</li>
+    <li><strong>Rest on <em>006 &mdash; Edit a to-do&rsquo;s title</em></strong>: landing item <code>006</code> first ensures the new <em>Edit</em> link and inline edit row share the quiet row styling and card alignment in one pass rather than styling rows before <em>Edit</em> exists.</li>
+    <li><strong>Update item <code>005</code>&rsquo;s glyph assertions in <code>tests/test_main.py</code></strong> <em>(chosen by makase)</em>: removing the double-boxed <code>☐</code>/<code>☑</code> characters intentionally breaks old literal-glyph checks, so those tests switch to checking CSS-checkbox semantics and absence of the glyphs while preserving every form-submission, ordering, and escaping check.</li>
+    <li><strong>Keep all CSS inline in <code>render()</code>&rsquo;s <code>&lt;style&gt;</code> block</strong> <em>(chosen by makase)</em>: avoids adding static-file mounts or asset pipelines so <code>app/main.py</code> stays one self-contained module, consistent with the vision and trivial to split out later if needed.</li>
+    <li><strong>Preserve <code>&lt;s&gt;</code> strike-through and quiet secondary row actions</strong> <em>(chosen by makase)</em>: done rows keep <code>&lt;s&gt;</code> with <code>line-through</code> intact alongside the checked CSS box, and <em>Edit</em> and <em>Delete</em> use a quiet secondary style so <em>Add</em> remains the page&rsquo;s single primary accent control.</li>
+    <li><strong>Keep one HTML source line per <code>&lt;li&gt;</code> and preserve <code>class="todo"</code> / <code>class="todo done"</code></strong> <em>(chosen by makase)</em>: preserves existing test helpers (<code>rendered_item</code>, <code>rendered_list_items</code>) and DOM structure while letting CSS handle all visual layout.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>
