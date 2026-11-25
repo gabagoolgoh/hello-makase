@@ -71,15 +71,21 @@ def item(todo: Todo) -> str:
         box = (
             f'<form class="undo" method="post" action="/todos/{todo.id}/undo">'
             f'<button type="submit" role="checkbox" aria-checked="true" aria-label="{title}">'
-            "&#9745;</button></form>"
+            "</button></form>"
         )
-        return f'      <li class="todo done">{box} <s>{title}</s> {edit} {delete}</li>'
+        return (
+            f'      <li class="todo done">{box} <span class="title"><s>{title}</s></span> '
+            f"{edit} {delete}</li>"
+        )
     box = (
         f'<form class="done" method="post" action="/todos/{todo.id}/done">'
         f'<button type="submit" role="checkbox" aria-checked="false" aria-label="{title}">'
-        "&#9744;</button></form>"
+        "</button></form>"
     )
-    return f'      <li class="todo">{box} {title} {edit} {delete}</li>'
+    return (
+        f'      <li class="todo">{box} <span class="title">{title}</span> '
+        f"{edit} {delete}</li>"
+    )
 
 
 def edit_item(todo: Todo) -> str:
@@ -109,25 +115,36 @@ def render(edit_id: int | None = None) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>To-dos</title>
   <style>
-    body {{ font-family: system-ui, sans-serif; max-width: 32rem; margin: 0.6rem auto; padding: 0 1rem; background: #ffffff; color: #000000; font-size: 14px; }}
-    h1 {{ font-size: 1.35rem; margin: 0 0 0.25rem; }}
-    p.remaining {{ margin: 0 0 0.45rem; }}
-    ul {{ padding-left: 1.2rem; margin: 0.25rem 0; }}
-    li {{ margin: 0.25rem 0; }}
-    form.add {{ display: flex; gap: 0.5rem; margin-top: 0.55rem; }}
-    form.add input {{ flex: 1; min-width: 0; }}
-    form.done, form.undo {{ display: inline; margin-right: 0.4rem; }}
-    form.done button, form.undo button {{ padding: 0 0.2rem; border: 1px solid currentColor; border-radius: 0.15rem; background: #ffffff; color: inherit; font: inherit; line-height: 1.2; cursor: pointer; }}
-    form.delete {{ display: inline; margin-left: 0.5rem; }}
-    a.edit, form.edit {{ display: inline; margin-left: 0.5rem; }}
-    form.edit input {{ width: 12rem; }}
-    form.edit a {{ margin-left: 0.5rem; }}
+    * {{ box-sizing: border-box; }}
+    body {{ margin: 0; padding: 8px 12px; font-family: system-ui, sans-serif; font-size: 13px; background: #f4f4f2; color: #18181b; }}
+    main {{ max-width: 32rem; margin: 0 auto; padding: 8px 12px; background: #ffffff; border: 1px solid #e4e4e7; border-radius: 8px; }}
+    .head {{ display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px; }}
+    h1 {{ margin: 0; font-size: 1.1rem; }}
+    p.remaining {{ margin: 0; font-size: 11px; color: #71717a; }}
+    ul {{ list-style: none; padding: 0; margin: 0 0 8px; }}
+    li {{ display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid #f4f4f5; }}
+    .title {{ flex: 1; min-width: 0; overflow-wrap: anywhere; }}
+    li.done .title {{ color: #a1a1aa; }}
+    form.done, form.undo {{ display: flex; flex-shrink: 0; margin: 0; }}
+    form.done button, form.undo button {{ position: relative; width: 15px; height: 15px; padding: 0; background: #ffffff; border: 1.5px solid #a1a1aa; border-radius: 4px; cursor: pointer; flex-shrink: 0; }}
+    form.undo button {{ background: #2563eb; border-color: #2563eb; }}
+    form.undo button::after {{ content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px; border: solid #ffffff; border-width: 0 2px 2px 0; transform: rotate(45deg); }}
+    a.edit, form.delete button {{ padding: 1px 6px; font: inherit; font-size: 11px; color: #71717a; background: transparent; border: none; border-radius: 4px; text-decoration: none; cursor: pointer; flex-shrink: 0; }}
+    form.delete {{ display: flex; margin: 0; }}
+    form.edit {{ display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; margin: 0; }}
+    form.edit input {{ flex: 1; min-width: 0; padding: 4px 8px; font: inherit; background: #fafafa; border: 1px solid #d4d4d8; border-radius: 5px; }}
+    form.edit button {{ padding: 1px 6px; font: inherit; font-size: 11px; color: #18181b; background: #fafafa; border: 1px solid #d4d4d8; border-radius: 4px; cursor: pointer; }}
+    form.add {{ display: flex; gap: 6px; }}
+    form.add input {{ flex: 1; min-width: 0; padding: 4px 8px; font: inherit; background: #fafafa; border: 1px solid #d4d4d8; border-radius: 5px; }}
+    form.add button {{ padding: 4px 10px; font: inherit; font-weight: 500; color: #ffffff; background: #2563eb; border: none; border-radius: 5px; cursor: pointer; }}
   </style>
 </head>
 <body>
   <main>
-    <h1>To-dos</h1>
-    <p class="remaining">{count}</p>
+    <div class="head">
+      <h1>To-dos</h1>
+      <p class="remaining">{count}</p>
+    </div>
     <ul>
 {items}
     </ul>

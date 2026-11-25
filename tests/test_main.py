@@ -135,7 +135,8 @@ def test_undoing_a_done_todo_returns_it_to_open() -> None:
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
     assert box_attributes.get("type") == "submit", "the box must be a submit control"
-    assert button_text(box_buttons[0]) == "☐"
+    assert button_text(box_buttons[0]) == ""
+    assert "☐" not in box_buttons[0] and "☑" not in box_buttons[0]
     assert box_attributes.get("role") == "checkbox"
     assert box_attributes.get("aria-checked") == "false"
     assert box_attributes.get("aria-label") == todo.title
@@ -365,7 +366,7 @@ def test_a_missing_or_repeated_delete_answers_303_and_changes_nothing() -> None:
 
 
 def test_deleting_every_todo_leaves_an_empty_page_with_the_add_form() -> None:
-    """Case 6: deleting every to-do leaves the page rendering with Nothing left and Add."""
+    """Spec 007 case 9: deleting every to-do leaves Nothing left and a working Add form."""
     for todo in list(main.todos):
         response = client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
         assert response.status_code == 303
@@ -375,6 +376,9 @@ def test_deleting_every_todo_leaves_an_empty_page_with_the_add_form() -> None:
     assert response.status_code == 200
     page = response.text
     assert not re.search(r"<li\b", page), "the empty page should list no to-do rows"
+    assert not any(
+        button_attributes(button).get("role") == "checkbox" for button in buttons_in(page)
+    ), "the empty page should show no checkbox buttons"
     assert remaining_count(page) == "Nothing left"
     add_forms = [form for form in forms_in(page) if posts_to(form, "/todos")]
     assert len(add_forms) == 1, "the empty page should still offer its Add form"
@@ -721,7 +725,6 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         assert len(row_forms) == 2, f"{todo.title} should offer exactly two actions inside its row"
 
         first_action = "undo" if todo.done else "done"
-        expected_glyph = "&#9745;" if todo.done else "&#9744;"
         expected_checked = "true" if todo.done else "false"
         assert posts_to(row_forms[0], f"/todos/{todo.id}/{first_action}"), (
             f"{todo.title} should act on itself with its {first_action} box"
@@ -729,10 +732,11 @@ def test_a_done_todo_shows_undo_and_an_open_one_does_not() -> None:
         box_buttons = buttons_in(row_forms[0])
         assert len(box_buttons) == 1
         box_attributes = button_attributes(box_buttons[0])
-        assert expected_glyph in box_buttons[0]
+        assert "&#9745;" not in box_buttons[0] and "&#9744;" not in box_buttons[0]
+        assert "☑" not in box_buttons[0] and "☐" not in box_buttons[0]
         assert box_attributes.get("type") == "submit", f"{todo.title}'s box must be a submit control"
-        assert button_text(box_buttons[0]) == ("☑" if todo.done else "☐"), (
-            f"{todo.title}'s box must display its glyph as visible text"
+        assert button_text(box_buttons[0]) == "", (
+            f"{todo.title}'s box must be drawn by CSS, not a visible glyph"
         )
         assert box_attributes.get("role") == "checkbox"
         assert box_attributes.get("aria-checked") == expected_checked
@@ -796,7 +800,8 @@ def test_unticking_a_title_keeps_it_escaped() -> None:
     assert len(box_buttons) == 1
     box_attributes = button_attributes(box_buttons[0])
     assert box_attributes.get("type") == "submit", "the box must be a submit control"
-    assert button_text(box_buttons[0]) == "☐"
+    assert button_text(box_buttons[0]) == ""
+    assert "☐" not in box_buttons[0] and "☑" not in box_buttons[0]
     assert box_attributes.get("role") == "checkbox"
     assert box_attributes.get("aria-checked") == "false"
     assert html.unescape(box_attributes.get("aria-label", "")) == todo.title
@@ -822,7 +827,8 @@ def test_case_1_an_open_row_starts_with_an_empty_box_posting_done() -> None:
     box_button = box_buttons[0]
     attributes = button_attributes(box_button)
     assert attributes.get("type") == "submit", "the box must be a submit control"
-    assert button_text(box_button) == "☐"
+    assert button_text(box_button) == ""
+    assert "☐" not in box_button and "☑" not in box_button
     assert attributes.get("role") == "checkbox"
     assert attributes.get("aria-checked") == "false"
     assert attributes.get("aria-label") == todo.title
@@ -845,10 +851,45 @@ def test_case_2_a_done_row_starts_with_a_ticked_box_posting_undo() -> None:
     box_button = box_buttons[0]
     attributes = button_attributes(box_button)
     assert attributes.get("type") == "submit", "the box must be a submit control"
-    assert button_text(box_button) == "☑", "the tick must be the box's visible text"
+    assert button_text(box_button) == ""
+    assert "☐" not in box_button and "☑" not in box_button
     assert attributes.get("role") == "checkbox"
     assert attributes.get("aria-checked") == "true"
     assert attributes.get("aria-label") == todo.title
+
+
+def test_case_3_page_styles_draw_a_card_with_css_checkboxes() -> None:
+    """Case 3: the page styles the card, divider rows, CSS checkbox states, quiet controls and Add."""
+    page = client.get("/").text
+
+    def declarations(selector: str) -> list[str]:
+        return [
+            declaration
+            for candidate, declaration in style_rules(page)
+            if candidate == selector
+        ]
+
+    assert "list-style: none" in declarations("ul")
+    assert "display: flex" in declarations("li")
+    assert any(declaration.startswith("border-bottom:") for declaration in declarations("li"))
+    card = declarations("main")
+    assert any(declaration.startswith("background:") for declaration in card)
+    assert any(declaration.startswith("border:") for declaration in card)
+    assert any(declaration.startswith("border-radius:") for declaration in card)
+    for selector in ("form.done button", "form.undo button"):
+        box_rules = declarations(selector)
+        assert any(declaration.startswith("width:") for declaration in box_rules)
+        assert any(declaration.startswith("height:") for declaration in box_rules)
+        assert any(declaration.startswith("border:") for declaration in box_rules)
+    assert "background: #2563eb" in declarations("form.undo button")
+    assert any(declaration.startswith("background:") for declaration in declarations("a.edit"))
+    assert any(
+        declaration.startswith("background:")
+        for declaration in declarations("form.delete button")
+    )
+    assert "background: #2563eb" in declarations("form.add button")
+    assert "color: #ffffff" in declarations("form.add button")
+    assert not re.search(r'<input\b[^>]*\btype="checkbox"', page, re.IGNORECASE)
 
 
 def test_case_3_every_row_is_box_then_title_then_delete() -> None:
@@ -935,7 +976,12 @@ def test_case_5_clicking_an_open_box_ticks_it_and_drops_the_count() -> None:
     assert todo.done
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert "&#9745;" in row
+    row_forms = forms_in(row)
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/undo")
+    box_button = buttons_in(row_forms[0])[0]
+    assert button_text(box_button) == ""
+    assert "☐" not in row and "☑" not in row
+    assert button_attributes(box_button).get("aria-checked") == "true"
     assert f"<s>{html.escape(todo.title)}</s>" in row
     assert remaining_count(page) == "4 left"
 
@@ -967,9 +1013,13 @@ def test_case_6_clicking_a_done_box_opens_it_and_raises_the_count() -> None:
     assert not todo.done
     page = client.get("/").text
     row = rendered_item(page, todo.title)
-    assert "&#9744;" in row
-    assert "<s>" not in row, "the reopened row should not be struck through"
     row_forms = forms_in(row)
+    assert posts_to(row_forms[0], f"/todos/{todo.id}/done")
+    box_button = buttons_in(row_forms[0])[0]
+    assert button_text(box_button) == ""
+    assert "☐" not in row and "☑" not in row
+    assert button_attributes(box_button).get("aria-checked") == "false"
+    assert "<s>" not in row, "the reopened row should not be struck through"
     assert visible_title_between_forms(row, row_forms[0], row_forms[1]) == todo.title
     assert_edit_link_between_forms(row, row_forms[0], row_forms[1], todo.id)
     assert remaining_count(page) == "5 left"
@@ -982,9 +1032,9 @@ def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -
     done_todo.done = True
     page = client.get("/").text
 
-    for todo, path, box_glyph, expected_done, result_glyph in (
-        (open_todo, f"/todos/{open_todo.id}/done", "☐", True, "&#9745;"),
-        (done_todo, f"/todos/{done_todo.id}/undo", "☑", False, "&#9744;"),
+    for todo, path, initial_checked, expected_done in (
+        (open_todo, f"/todos/{open_todo.id}/done", "false", True),
+        (done_todo, f"/todos/{done_todo.id}/undo", "true", False),
     ):
         row = rendered_item(page, todo.title)
         row_forms = forms_in(row)
@@ -997,7 +1047,9 @@ def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -
         assert button_attributes(box_button).get("type") == "submit", (
             "the box must be a submit control"
         )
-        assert button_text(box_button) == box_glyph
+        assert button_text(box_button) == ""
+        assert "☐" not in box_button and "☑" not in box_button
+        assert button_attributes(box_button).get("aria-checked") == initial_checked
         method, action = form_submission(box_form, box_button)
         assert method == "post"
         assert action == path
@@ -1009,7 +1061,12 @@ def test_case_7_posting_the_same_rendered_box_twice_keeps_the_state_it_names() -
 
         assert todo.done == expected_done
         result_row = rendered_item(client.get("/").text, todo.title)
-        assert result_glyph in result_row
+        result_button = buttons_in(forms_in(result_row)[0])[0]
+        assert button_text(result_button) == ""
+        assert "☐" not in result_row and "☑" not in result_row
+        assert button_attributes(result_button).get("aria-checked") == (
+            "true" if expected_done else "false"
+        )
         if expected_done:
             assert f"<s>{html.escape(todo.title)}</s>" in result_row
         else:
@@ -1116,7 +1173,8 @@ def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
     box_button = box_buttons[0]
     attributes = button_attributes(box_button)
     assert attributes.get("type") == "submit", "the box must be a submit control"
-    assert button_text(box_button) == "\u2610", "the empty glyph must be the box's visible text"
+    assert button_text(box_button) == ""
+    assert "☐" not in box_button and "☑" not in box_button
     assert attributes.get("role") == "checkbox"
     assert attributes.get("aria-checked") == "false"
     assert html.unescape(attributes.get("aria-label", "")) == todo.title
@@ -1128,7 +1186,131 @@ def test_case_10_a_newly_added_todo_shows_an_empty_box() -> None:
     assert posted.status_code == 303
     assert posted.headers["location"] == "/"
     assert todo.done
-    assert remaining_count(client.get("/").text) == "4 left"
+    page = client.get("/").text
+    done_row = rendered_item(page, todo.title)
+    done_button = buttons_in(forms_in(done_row)[0])[0]
+    assert button_text(done_button) == ""
+    assert "☐" not in done_row and "☑" not in done_row
+    assert button_attributes(done_button).get("aria-checked") == "true"
+    assert remaining_count(page) == "4 left"
+
+
+def test_case_8_editing_a_row_updates_its_title_and_checkbox_label() -> None:
+    """Case 8: an edit row saves its title and checkbox label, while Cancel changes nothing."""
+    todo = main.add("Wash the car")
+    page = client.get("/").text
+    edit_link = links_in(rendered_item(page, todo.title))[0]
+    assert link_attributes(edit_link).get("href") == f"/?edit={todo.id}"
+
+    edit_page = client.get("/", params={"edit": str(todo.id)}).text
+    edit_row = rendered_item(edit_page, todo.title)
+    edit_forms = [
+        form for form in forms_in(edit_row) if posts_to(form, f"/todos/{todo.id}/edit")
+    ]
+    assert len(edit_forms) == 1
+    assert not any(
+        button_attributes(button).get("role") == "checkbox" for button in buttons_in(edit_row)
+    )
+    assert not any(
+        posts_to(form, f"/todos/{todo.id}/delete") for form in forms_in(edit_row)
+    )
+
+    new_title = "Washed the car"
+    saved = client.post(
+        f"/todos/{todo.id}/edit", data={"title": new_title}, follow_redirects=False
+    )
+    assert saved.status_code == 303
+    assert saved.headers["location"] == "/"
+    page = client.get("/").text
+    row = rendered_item(page, new_title)
+    assert html.escape(new_title) in row
+    box_button = buttons_in(forms_in(row)[0])[0]
+    assert button_attributes(box_button).get("aria-label") == html.escape(new_title)
+
+    before_cancel = (todo.title, todo.done)
+    cancel_page = client.get("/", params={"edit": str(todo.id)}).text
+    cancel_row = rendered_item(cancel_page, new_title)
+    cancel_link = links_in(cancel_row)[0]
+    cancel_href = link_attributes(cancel_link).get("href")
+    assert cancel_href == "/"
+    cancel_response = client.get(cancel_href)
+    assert cancel_response.status_code == 200
+    assert (todo.title, todo.done) == before_cancel
+
+    client.post(
+        f"/todos/{todo.id}/edit", data={"title": "   "}, follow_redirects=False
+    )
+    assert (todo.title, todo.done) == before_cancel
+
+
+def test_case_10_unknown_deleted_and_non_integer_ids_keep_their_responses() -> None:
+    """Case 10: unknown or deleted ids 404 for done, undo and edit but redirect for delete,
+
+    a non-integer id is 422, and a bad edit query draws the normal page.
+    """
+    todo = main.add("Ghost target")
+    client.post(f"/todos/{todo.id}/delete", follow_redirects=False)
+    unknown = max(one.id for one in main.todos) + 1
+
+    # makase: inventory
+    for identifier in (str(unknown), str(todo.id)):
+        for action in ("done", "undo", "edit"):
+            response = client.post(
+                f"/todos/{identifier}/{action}",
+                data={"title": "Ghost"},
+                follow_redirects=False,
+            )
+            assert response.status_code == 404, f"{action} should 404 for {identifier}"
+        deleted = client.post(f"/todos/{identifier}/delete", follow_redirects=False)
+        assert deleted.status_code == 303
+
+    # makase: inventory
+    for action in ("done", "undo", "edit"):
+        response = client.post(
+            f"/todos/not-an-int/{action}", data={"title": "Ghost"}, follow_redirects=False
+        )
+        assert response.status_code == 422, f"{action} should refuse a non-integer id"
+    bad_delete = client.post("/todos/not-an-int/delete", follow_redirects=False)
+    assert bad_delete.status_code == 422
+
+    plain = client.get("/").text
+    for value in (str(unknown), str(todo.id), "not-an-int", ""):
+        response = client.get("/", params={"edit": value})
+        assert response.status_code == 200
+        assert response.text == plain
+
+
+def test_case_11_a_special_title_stays_escaped_in_every_position() -> None:
+    """Case 11: <, & and " stay escaped in open and done rows, the edit input and aria-label."""
+    title = '<b>bold & "quoted"</b>'
+    todo = main.add(title)
+
+    for done in (False, True):
+        todo.done = done
+        page = client.get("/").text
+        row = rendered_item(page, title)
+        row_forms = forms_in(row)
+        assert len(row_forms) == 2
+        box_button = buttons_in(row_forms[0])[0]
+        assert button_attributes(box_button).get("aria-label") == html.escape(title)
+        assert button_text(box_button) == ""
+        assert title not in page
+        assert title_markup_between_forms(row, row_forms[0], row_forms[1]) == html.escape(title)
+        if done:
+            assert f"<s>{html.escape(title)}</s>" in row
+        else:
+            assert "<s>" not in row
+
+    edit_page = client.get("/", params={"edit": str(todo.id)}).text
+    edit_row = rendered_item(edit_page, title)
+    edit_form = forms_in(edit_row)[0]
+    title_input = next(
+        control
+        for control in input_controls_in(edit_form)
+        if button_attributes(control).get("name") == "title"
+    )
+    assert button_attributes(title_input).get("value") == html.escape(title)
+    assert title not in edit_page
 
 
 def test_case_2_page_styles_keep_a_done_title_struck_through() -> None:
