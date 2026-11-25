@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tasks 008: JSON to-do API</title>
-  <meta name="makase-status" content="Proposed">
+  <meta name="makase-status" content="Complete">
   <meta name="makase-type" content="code">
   <meta name="makase-id" content="008">
   <link rel="stylesheet" href="../assets/spec.css">
@@ -15,9 +15,12 @@
   <h1>Tasks 008: JSON to-do API</h1>
 
   <dl class="meta">
-    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
     <dt>Spec</dt><dd><a href="spec.html">JSON to-do API</a></dd>
   </dl>
+
+  <h2>What shipped</h2>
+  <p>The app now serves a JSON API under <code>/api/todos</code> in <code>app/main.py</code> that lists, adds, completes, undoes, edits, and deletes the same in-memory to-dos the server-rendered page uses, returning JSON errors for missing items and blank titles.</p>
 
 <table class="groups">
   <tr><td>A</td><td>Add a JSON to-do API under /api/todos beside the HTML routes</td></tr>
