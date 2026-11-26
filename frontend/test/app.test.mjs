@@ -681,3 +681,288 @@ test("row case 10: an HTML title stays literal in a row ticked by a row click", 
   assert.equal(row.querySelector(".title b"), null);
   assert.equal(document.querySelector("b"), null);
 });
+
+function filterButton(document, label) {
+  return [...document.querySelectorAll(".filters button")].find(
+    (button) => button.textContent === label,
+  );
+}
+
+function selectedFilter(document) {
+  return [...document.querySelectorAll(".filters button")].find(
+    (button) => button.getAttribute("aria-pressed") === "true",
+  )?.textContent;
+}
+
+test("filter case 1: All is selected initially, every todo is shown, and the count is open", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  assert.equal(selectedFilter(document), "All");
+  assert.equal(filterButton(document, "All").getAttribute("aria-pressed"), "true");
+  assert.equal(filterButton(document, "Active").getAttribute("aria-pressed"), "false");
+  assert.equal(filterButton(document, "Done").getAttribute("aria-pressed"), "false");
+  assert.deepEqual(titles(document), [
+    "Buy milk",
+    "Water the plants",
+    "Call the dentist",
+  ]);
+  assert.equal(remaining(document), "2 left");
+  assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+});
+
+test("filter case 2: Active shows only open todos and keeps the full open count", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  filterButton(document, "Active").click();
+  await flush();
+
+  assert.equal(selectedFilter(document), "Active");
+  assert.equal(filterButton(document, "Active").getAttribute("aria-pressed"), "true");
+  assert.equal(filterButton(document, "All").getAttribute("aria-pressed"), "false");
+  assert.deepEqual(titles(document), ["Water the plants", "Call the dentist"]);
+  assert.equal(remaining(document), "2 left");
+  assert.equal(calls.filter((call) => call.method === "GET").length, 1);
+});
+
+test("filter case 3: Done shows only completed todos and keeps the full open count", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  filterButton(document, "Done").click();
+  await flush();
+
+  assert.equal(selectedFilter(document), "Done");
+  assert.equal(filterButton(document, "Done").getAttribute("aria-pressed"), "true");
+  assert.deepEqual(titles(document), ["Buy milk"]);
+  assert.equal(remaining(document), "2 left");
+  assert.equal(calls.filter((call) => call.method === "GET").length, 1);
+});
+
+test("filter case 4: All after Active or Done restores every todo in insertion order", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+    ],
+  });
+  const { document } = await env.start();
+
+  filterButton(document, "Active").click();
+  await flush();
+  filterButton(document, "All").click();
+  await flush();
+  assert.deepEqual(titles(document), [
+    "Buy milk",
+    "Water the plants",
+    "Call the dentist",
+  ]);
+
+  filterButton(document, "Done").click();
+  await flush();
+  filterButton(document, "All").click();
+  await flush();
+  assert.deepEqual(titles(document), [
+    "Buy milk",
+    "Water the plants",
+    "Call the dentist",
+  ]);
+});
+
+test("filter case 5: clicking the selected tab changes nothing and sends no request", async () => {
+  const env = setup();
+  const { document, calls } = await env.start();
+
+  filterButton(document, "Active").click();
+  await flush();
+  const before = titles(document);
+  const beforeCount = remaining(document);
+  const beforeCalls = calls.length;
+
+  filterButton(document, "Active").click();
+  await flush();
+
+  assert.equal(selectedFilter(document), "Active");
+  assert.deepEqual(titles(document), before);
+  assert.equal(remaining(document), beforeCount);
+  assert.equal(calls.length, beforeCalls);
+});
+
+test("filter case 6: an empty filter renders no rows and keeps the full open count", async () => {
+  const open = setup({ todos: [{ id: 1, title: "Still open", done: false }] });
+  const openStarted = await open.start();
+  filterButton(openStarted.document, "Done").click();
+  await flush();
+  assert.deepEqual(titles(openStarted.document), []);
+  assert.equal(remaining(openStarted.document), "1 left");
+
+  const done = setup({ todos: [{ id: 1, title: "Already done", done: true }] });
+  const doneStarted = await done.start();
+  filterButton(doneStarted.document, "Active").click();
+  await flush();
+  assert.deepEqual(titles(doneStarted.document), []);
+  assert.equal(remaining(doneStarted.document), "Nothing left");
+
+  const empty = setup({ todos: [] });
+  const emptyStarted = await empty.start();
+  assert.deepEqual(titles(emptyStarted.document), []);
+  assert.equal(remaining(emptyStarted.document), "Nothing left");
+});
+
+test("filter case 7: adding under Active shows the new todo, while adding under Done keeps it hidden", async () => {
+  const active = setup({ todos: [{ id: 1, title: "Existing open", done: false }] });
+  const activeStarted = await active.start();
+  filterButton(activeStarted.document, "Active").click();
+  await flush();
+
+  const activeInput = activeStarted.document.querySelector('form.add input[name="title"]');
+  activeInput.value = "New active";
+  submit(activeStarted.document.querySelector("form.add"));
+  await flush();
+
+  assert.equal(selectedFilter(activeStarted.document), "Active");
+  assert.deepEqual(titles(activeStarted.document), ["Existing open", "New active"]);
+  assert.equal(remaining(activeStarted.document), "2 left");
+
+  const done = setup({ todos: [{ id: 1, title: "Finished", done: true }] });
+  const doneStarted = await done.start();
+  filterButton(doneStarted.document, "Done").click();
+  await flush();
+
+  const doneInput = doneStarted.document.querySelector('form.add input[name="title"]');
+  doneInput.value = "Hidden while done";
+  submit(doneStarted.document.querySelector("form.add"));
+  await flush();
+
+  const post = doneStarted.calls.find((call) => call.method === "POST");
+  assert.ok(post, "adding should POST to the API");
+  assert.deepEqual(post.body, { title: "Hidden while done" });
+  assert.equal(selectedFilter(doneStarted.document), "Done");
+  assert.deepEqual(titles(doneStarted.document), ["Finished"]);
+  assert.equal(remaining(doneStarted.document), "1 left");
+
+  filterButton(doneStarted.document, "Active").click();
+  await flush();
+  assert.deepEqual(titles(doneStarted.document), ["Hidden while done"]);
+
+  filterButton(doneStarted.document, "All").click();
+  await flush();
+  assert.deepEqual(titles(doneStarted.document), ["Finished", "Hidden while done"]);
+});
+
+test("filter case 8: toggling out of the active filter patches, updates the count, and keeps the todo", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Open job", done: false },
+      { id: 2, title: "Done job", done: true },
+    ],
+  });
+  const { document, calls, state } = await env.start();
+
+  filterButton(document, "Active").click();
+  await flush();
+  assert.deepEqual(titles(document), ["Open job"]);
+
+  rowFor(document, "Open job").querySelector(".toggle").click();
+  await flush();
+
+  const activePatch = calls.filter((call) => call.method === "PATCH").at(-1);
+  assert.equal(activePatch.url, "/api/todos/1");
+  assert.deepEqual(activePatch.body, { done: true });
+  assert.equal(selectedFilter(document), "Active");
+  assert.deepEqual(titles(document), []);
+  assert.equal(remaining(document), "Nothing left");
+  assert.equal(state.find((todo) => todo.id === 1).done, true);
+
+  filterButton(document, "Done").click();
+  await flush();
+  assert.deepEqual(titles(document), ["Open job", "Done job"]);
+
+  rowFor(document, "Done job").querySelector(".toggle").click();
+  await flush();
+
+  const donePatch = calls.filter((call) => call.method === "PATCH").at(-1);
+  assert.equal(donePatch.url, "/api/todos/2");
+  assert.deepEqual(donePatch.body, { done: false });
+  assert.equal(selectedFilter(document), "Done");
+  assert.deepEqual(titles(document), ["Open job"]);
+  assert.equal(remaining(document), "1 left");
+  assert.equal(state.find((todo) => todo.id === 2).done, false);
+});
+
+test("filter case 9: editing and deleting stay in the active filter, and switching tabs cancels an open edit", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Open one", done: false },
+      { id: 2, title: "Done one", done: true },
+      { id: 3, title: "Open two", done: false },
+      { id: 4, title: "Done two", done: true },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  filterButton(document, "Active").click();
+  await flush();
+  let form = openEditor(document, 1);
+  form.querySelector('input[name="title"]').value = "Open one edited";
+  submit(form);
+  await flush();
+  assert.equal(selectedFilter(document), "Active");
+  assert.deepEqual(titles(document), ["Open one edited", "Open two"]);
+
+  rowById(document, 3).querySelector(".delete").click();
+  await flush();
+  assert.equal(selectedFilter(document), "Active");
+  assert.deepEqual(titles(document), ["Open one edited"]);
+
+  filterButton(document, "Done").click();
+  await flush();
+  form = openEditor(document, 2);
+  form.querySelector('input[name="title"]').value = "Done one edited";
+  submit(form);
+  await flush();
+  assert.equal(selectedFilter(document), "Done");
+  assert.deepEqual(titles(document), ["Done one edited", "Done two"]);
+
+  rowById(document, 4).querySelector(".delete").click();
+  await flush();
+  assert.equal(selectedFilter(document), "Done");
+  assert.deepEqual(titles(document), ["Done one edited"]);
+
+  filterButton(document, "All").click();
+  await flush();
+  form = openEditor(document, 1);
+  const beforeCancel = calls.filter((call) => call.method === "PATCH").length;
+  filterButton(document, "Done").click();
+  await flush();
+
+  assert.equal(document.querySelector("form.edit"), null, "switching tabs should cancel the edit");
+  assert.equal(selectedFilter(document), "Done");
+  assert.deepEqual(titles(document), ["Done one edited"]);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, beforeCancel);
+
+  filterButton(document, "All").click();
+  await flush();
+  assert.equal(rowById(document, 1).querySelector("form.edit"), null);
+  assert.equal(rowById(document, 1).querySelector(".title").textContent, "Open one edited");
+});

@@ -10,11 +10,19 @@ export function createApp({
 
   let todos = [];
   let editingId = null;
+  let filter = "all";
 
   root.innerHTML = `
     <div class="head">
       <h1>To-dos</h1>
       <p class="remaining" role="status"></p>
+    </div>
+    <div class="bar">
+      <div class="filters">
+        <button type="button" class="filter active" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="filter" data-filter="active" aria-pressed="false">Active</button>
+        <button type="button" class="filter" data-filter="done" aria-pressed="false">Done</button>
+      </div>
     </div>
     <p class="error" role="alert" hidden></p>
     <ul class="todos"></ul>
@@ -27,6 +35,7 @@ export function createApp({
   const remaining = root.querySelector(".remaining");
   const error = root.querySelector(".error");
   const list = root.querySelector(".todos");
+  const filterButtons = [...root.querySelectorAll(".filter")];
   const addForm = root.querySelector("form.add");
   const addInput = addForm.querySelector('input[name="title"]');
 
@@ -73,10 +82,28 @@ export function createApp({
     };
   }
 
+  function setFilter(next) {
+    if (filter === next) return;
+    filter = next;
+    editingId = null;
+    render();
+  }
+
+  function visibleTodos() {
+    if (filter === "active") return todos.filter((todo) => !todo.done);
+    if (filter === "done") return todos.filter((todo) => todo.done);
+    return todos;
+  }
+
   function render() {
     const left = todos.filter((todo) => !todo.done).length;
     remaining.textContent = left === 0 ? "Nothing left" : `${left} left`;
-    list.replaceChildren(...todos.map(renderRow));
+    for (const button of filterButtons) {
+      const selected = button.dataset.filter === filter;
+      button.classList.toggle("active", selected);
+      button.setAttribute("aria-pressed", String(selected));
+    }
+    list.replaceChildren(...visibleTodos().map(renderRow));
   }
 
   function renderRow(todo) {
@@ -282,6 +309,10 @@ export function createApp({
     event.preventDefault();
     void addTodo(addInput.value);
   });
+
+  for (const button of filterButtons) {
+    button.addEventListener("click", () => setFilter(button.dataset.filter));
+  }
 
   return {
     async start() {
