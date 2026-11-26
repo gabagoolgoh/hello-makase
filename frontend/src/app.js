@@ -131,6 +131,24 @@ export function createApp({
     });
 
     row.append(toggle, title, edit, remove);
+
+    row.addEventListener("click", (event) => {
+      if (event.target.closest?.(".toggle, .edit, .delete")) return;
+
+      const selection = doc.getSelection?.();
+      if (
+        selection &&
+        !selection.isCollapsed &&
+        selection.toString().length > 0 &&
+        selection.anchorNode &&
+        row.contains(selection.anchorNode)
+      ) {
+        return;
+      }
+
+      void toggleTodo(todo);
+    });
+
     return row;
   }
 

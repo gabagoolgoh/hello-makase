@@ -64,6 +64,11 @@ li {
   gap: 8px;
   padding: 4px 0;
   border-bottom: 1px solid #f4f4f5;
+  cursor: pointer;
+}
+
+li.editing {
+  cursor: auto;
 }
 
 .title {

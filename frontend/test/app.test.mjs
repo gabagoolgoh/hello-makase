@@ -473,3 +473,211 @@ test("case 8: reopening Edit after Escape pre-fills the original title", async (
   assert.equal(reopened.querySelector('input[name="title"]').value, "Buy milk");
   assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
 });
+
+test("row case 1: clicking an open to-do's title ticks it and updates row and count", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Open job", done: false },
+      { id: 2, title: "Done job", done: true },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  rowFor(document, "Open job").querySelector(".title").click();
+  await flush();
+
+  const patches = calls.filter((call) => call.method === "PATCH");
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].url, "/api/todos/1");
+  assert.deepEqual(patches[0].body, { done: true });
+  const row = rowFor(document, "Open job");
+  assert.ok(row.classList.contains("done"));
+  assert.ok(row.querySelector(".title s"), "the title should be struck through");
+  assert.equal(remaining(document), "Nothing left");
+});
+
+test("row case 2: clicking a done row's empty space unticks it and updates row and count", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Open job", done: false },
+      { id: 2, title: "Done job", done: true },
+    ],
+  });
+  const { document, calls } = await env.start();
+  assert.equal(remaining(document), "1 left");
+
+  rowById(document, 2).click();
+  await flush();
+
+  const patches = calls.filter((call) => call.method === "PATCH");
+  assert.equal(patches.length, 1);
+  assert.equal(patches[0].url, "/api/todos/2");
+  assert.deepEqual(patches[0].body, { done: false });
+  const row = rowById(document, 2);
+  assert.ok(!row.classList.contains("done"));
+  assert.equal(row.querySelector(".title s"), null);
+  assert.equal(remaining(document), "2 left");
+});
+
+test("row case 3: clicking the checkbox sends exactly one PATCH", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Open job", done: false }] });
+  const { document, calls } = await env.start();
+
+  rowById(document, 1).querySelector(".toggle").click();
+  await flush();
+
+  const patches = calls.filter((call) => call.method === "PATCH");
+  assert.equal(patches.length, 1);
+  assert.deepEqual(patches[0].body, { done: true });
+  assert.ok(rowById(document, 1).classList.contains("done"));
+});
+
+test("row case 4: clicking Edit opens the editor and sends no PATCH", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+
+  rowById(document, 1).querySelector(".edit").click();
+  await flush();
+
+  assert.ok(rowById(document, 1).querySelector("form.edit"));
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("row case 5: clicking Delete sends only DELETE and no PATCH", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+
+  rowById(document, 1).querySelector(".delete").click();
+  await flush();
+
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+  assert.equal(rowById(document, 1), null);
+});
+
+test("row case 6: clicks in an editing row never toggle and Save and Cancel still work", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+  const togglePatches = () =>
+    calls.filter((call) => call.method === "PATCH" && call.body && "done" in call.body).length;
+
+  input.click();
+  rowById(document, 1).click();
+  await flush();
+  assert.equal(togglePatches(), 0);
+  assert.ok(
+    rowById(document, 1).querySelector("form.edit"),
+    "clicks in the editing row should keep it open",
+  );
+
+  form.querySelector(".cancel").click();
+  await flush();
+  assert.equal(document.querySelector("form.edit"), null);
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+
+  const saveForm = openEditor(document, 1);
+  saveForm.querySelector('input[name="title"]').value = "Oat milk";
+  submit(saveForm);
+  await flush();
+
+  const patches = calls.filter((call) => call.method === "PATCH");
+  assert.equal(patches.length, 1);
+  assert.deepEqual(patches[0].body, { title: "Oat milk" });
+  assert.equal(rowById(document, 1).querySelector(".title").textContent, "Oat milk");
+});
+
+test("row case 7: a click that ends with text selected in the row sends no request", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const title = rowById(document, 1).querySelector(".title");
+  const selection = document.defaultView.getSelection();
+  const range = document.createRange();
+  range.selectNodeContents(title);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  assert.equal(selection.toString(), "Buy milk");
+
+  title.click();
+  await flush();
+
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+  assert.ok(!rowById(document, 1).classList.contains("done"));
+  assert.equal(remaining(document), "1 left");
+});
+
+test("row case 8: two clicks on the same drawn row send the same done value", async () => {
+  let releasePatches;
+  const patchesReady = new Promise((resolve) => {
+    releasePatches = resolve;
+  });
+  const env = setup({
+    todos: [{ id: 1, title: "Open job", done: false }],
+    handler: async ({ url, method, body, state }) => {
+      if (method !== "PATCH") return null;
+      await patchesReady;
+      const id = Number(url.split("/").pop());
+      const todo = state.find((one) => one.id === id);
+      Object.assign(todo, body);
+      return response(200, todo);
+    },
+  });
+  const { document, calls } = await env.start();
+  const title = rowById(document, 1).querySelector(".title");
+
+  title.click();
+  title.click();
+  await flush();
+
+  const patches = calls.filter((call) => call.method === "PATCH");
+  assert.equal(patches.length, 2);
+  assert.deepEqual(
+    patches.map((call) => call.body),
+    [{ done: true }, { done: true }],
+  );
+
+  releasePatches();
+  await flush();
+  assert.ok(rowById(document, 1).classList.contains("done"));
+});
+
+test("row case 9: a failed row click shows the detail and leaves row and count unchanged", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Open job", done: false },
+      { id: 2, title: "Done job", done: true },
+    ],
+    handler: async ({ method }) => {
+      if (method === "PATCH") return response(500, { detail: "Could not change the to-do." });
+      return null;
+    },
+  });
+  const { document, calls } = await env.start();
+  const before = remaining(document);
+
+  rowById(document, 1).querySelector(".title").click();
+  await flush();
+
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 1);
+  const error = document.querySelector(".error");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Could not change the to-do.");
+  assert.ok(!rowById(document, 1).classList.contains("done"));
+  assert.equal(remaining(document), before);
+});
+
+test("row case 10: an HTML title stays literal in a row ticked by a row click", async () => {
+  const env = setup({ todos: [{ id: 1, title: "<b>bold</b>", done: false }] });
+  const { document, calls } = await env.start();
+
+  rowById(document, 1).querySelector(".title").click();
+  await flush();
+
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 1);
+  const row = rowById(document, 1);
+  assert.ok(row.classList.contains("done"));
+  assert.equal(row.querySelector(".title").textContent, "<b>bold</b>");
+  assert.equal(row.querySelector(".title b"), null);
+  assert.equal(document.querySelector("b"), null);
+});
