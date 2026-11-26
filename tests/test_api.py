@@ -228,3 +228,66 @@ def test_the_api_works_over_the_shared_in_memory_list() -> None:
 
     assert client.delete(f"/api/todos/{created['id']}").status_code == 204
     assert created["id"] not in [todo.id for todo in main.todos]
+
+
+def test_clearing_done_todos_removes_only_them() -> None:
+    """Case 1: clearing answers 204 empty, drops every done item, and keeps open items and remaining."""
+    open_before = [one for one in snapshot() if not one[2]]
+    done_ids = [one[0] for one in snapshot() if one[2]]
+    assert done_ids, "the starters should include a done to-do"
+    remaining_before = listed()["remaining"]
+
+    response = client.delete("/api/todos/done")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert snapshot() == open_before
+    assert [todo["id"] for todo in listed()["todos"]] == [one[0] for one in open_before]
+    assert listed()["remaining"] == remaining_before
+
+
+def test_clearing_done_when_nothing_is_done_changes_nothing() -> None:
+    """Case 2: an all-open list and an empty list both answer 204 and stay as they were."""
+    for todo in main.todos:
+        todo.done = False
+    before = snapshot()
+    remaining_before = listed()["remaining"]
+
+    response = client.delete("/api/todos/done")
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert snapshot() == before
+    assert listed()["remaining"] == remaining_before
+
+    main.todos.clear()
+    empty = client.delete("/api/todos/done")
+
+    assert empty.status_code == 204
+    assert empty.content == b""
+    assert listed() == {"todos": [], "remaining": 0}
+
+
+def test_clearing_done_twice_is_idempotent() -> None:
+    """Case 3: a second clear answers 204 and changes nothing."""
+    first = client.delete("/api/todos/done")
+    assert first.status_code == 204
+    after_first = snapshot()
+
+    second = client.delete("/api/todos/done")
+
+    assert second.status_code == 204
+    assert second.content == b""
+    assert snapshot() == after_first
+
+
+def test_a_todo_added_after_clearing_never_reuses_a_cleared_id() -> None:
+    """Case 4: the ids of cleared done items are not handed out again."""
+    cleared = {todo.id for todo in main.todos if todo.done}
+    assert cleared, "the starters should include a done to-do"
+
+    assert client.delete("/api/todos/done").status_code == 204
+
+    created = client.post("/api/todos", json={"title": "Fresh start"}).json()
+
+    assert created["id"] not in cleared

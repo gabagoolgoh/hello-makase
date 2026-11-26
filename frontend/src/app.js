@@ -23,6 +23,7 @@ export function createApp({
         <button type="button" class="filter" data-filter="active" aria-pressed="false">Active</button>
         <button type="button" class="filter" data-filter="done" aria-pressed="false">Done</button>
       </div>
+      <button type="button" class="clear-done" disabled>Clear done</button>
     </div>
     <p class="error" role="alert" hidden></p>
     <ul class="todos"></ul>
@@ -36,6 +37,7 @@ export function createApp({
   const error = root.querySelector(".error");
   const list = root.querySelector(".todos");
   const filterButtons = [...root.querySelectorAll(".filter")];
+  const clearDone = root.querySelector(".clear-done");
   const addForm = root.querySelector("form.add");
   const addInput = addForm.querySelector('input[name="title"]');
 
@@ -103,6 +105,7 @@ export function createApp({
       button.classList.toggle("active", selected);
       button.setAttribute("aria-pressed", String(selected));
     }
+    clearDone.disabled = !todos.some((todo) => todo.done);
     list.replaceChildren(...visibleTodos().map(renderRow));
   }
 
@@ -289,6 +292,24 @@ export function createApp({
     }
   }
 
+  async function clearDoneTodos() {
+    try {
+      clearError();
+      await request(
+        "/api/todos/done",
+        { method: "DELETE" },
+        "Could not clear the done to-dos.",
+      );
+      todos = todos.filter((todo) => !todo.done);
+      if (editingId !== null && !todos.some((todo) => todo.id === editingId)) {
+        editingId = null;
+      }
+      render();
+    } catch (failure) {
+      showError(errorMessage("Could not clear the done to-dos.", failure));
+    }
+  }
+
   async function deleteTodo(todo) {
     try {
       clearError();
@@ -313,6 +334,10 @@ export function createApp({
   for (const button of filterButtons) {
     button.addEventListener("click", () => setFilter(button.dataset.filter));
   }
+
+  clearDone.addEventListener("click", () => {
+    void clearDoneTodos();
+  });
 
   return {
     async start() {
