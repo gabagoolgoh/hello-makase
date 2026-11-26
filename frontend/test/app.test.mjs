@@ -52,6 +52,12 @@ function setup({ todos, handler } = {}) {
       };
       return response(201, created);
     }
+    if (url === "/api/todos/done" && method === "DELETE") {
+      for (let index = state.length - 1; index >= 0; index -= 1) {
+        if (state[index].done) state.splice(index, 1);
+      }
+      return response(204, null);
+    }
     const match = url.match(/^\/api\/todos\/(\d+)$/);
     if (match) {
       const id = Number(match[1]);
@@ -965,4 +971,200 @@ test("filter case 9: editing and deleting stay in the active filter, and switchi
   await flush();
   assert.equal(rowById(document, 1).querySelector("form.edit"), null);
   assert.equal(rowById(document, 1).querySelector(".title").textContent, "Open one edited");
+});
+
+function clearDoneButton(document) {
+  return [...document.querySelectorAll(".bar button")].find(
+    (button) => button.textContent === "Clear done",
+  );
+}
+
+test("clear case 5: Clear done sends one request, drops done rows, and keeps active rows, count and tab", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+      { id: 4, title: "Read a chapter", done: true },
+    ],
+  });
+  const { document, calls, state } = await env.start();
+  assert.equal(remaining(document), "2 left");
+  assert.equal(clearDoneButton(document).disabled, false);
+  const before = calls.length;
+
+  clearDoneButton(document).click();
+  await flush();
+
+  const newCalls = calls.slice(before);
+  assert.equal(newCalls.length, 1, "clearing should send exactly one request");
+  assert.equal(newCalls[0].method, "DELETE");
+  assert.equal(newCalls[0].url, "/api/todos/done");
+  assert.deepEqual(titles(document), ["Water the plants", "Call the dentist"]);
+  assert.equal(remaining(document), "2 left");
+  assert.equal(selectedFilter(document), "All");
+  assert.deepEqual(
+    state.map((todo) => todo.id),
+    [2, 3],
+  );
+});
+
+test("clear case 6: clearing under Done or Active keeps the other items and the selected tab", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+      { id: 4, title: "Read a chapter", done: true },
+    ],
+  });
+  const { document, calls } = await env.start();
+
+  filterButton(document, "Done").click();
+  await flush();
+  assert.deepEqual(titles(document), ["Buy milk", "Read a chapter"]);
+
+  clearDoneButton(document).click();
+  await flush();
+
+  assert.equal(selectedFilter(document), "Done");
+  assert.deepEqual(titles(document), []);
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
+  assert.equal(remaining(document), "2 left");
+
+  filterButton(document, "All").click();
+  await flush();
+  assert.deepEqual(titles(document), ["Water the plants", "Call the dentist"]);
+  filterButton(document, "Active").click();
+  await flush();
+  assert.deepEqual(titles(document), ["Water the plants", "Call the dentist"]);
+
+  const active = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+      { id: 3, title: "Call the dentist", done: false },
+      { id: 4, title: "Read a chapter", done: true },
+    ],
+  });
+  const activeStarted = await active.start();
+  filterButton(activeStarted.document, "Active").click();
+  await flush();
+  assert.deepEqual(titles(activeStarted.document), ["Water the plants", "Call the dentist"]);
+
+  clearDoneButton(activeStarted.document).click();
+  await flush();
+
+  assert.equal(selectedFilter(activeStarted.document), "Active");
+  assert.deepEqual(titles(activeStarted.document), ["Water the plants", "Call the dentist"]);
+  const deletes = activeStarted.calls.filter((call) => call.method === "DELETE");
+  assert.equal(deletes.length, 1);
+  assert.equal(deletes[0].url, "/api/todos/done");
+  assert.equal(remaining(activeStarted.document), "2 left");
+});
+
+test("clear case 7: with nothing done the button is disabled and sends no request", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Water the plants", done: false },
+      { id: 2, title: "Call the dentist", done: false },
+    ],
+  });
+  const { document, calls } = await env.start();
+  const button = clearDoneButton(document);
+  assert.equal(button.disabled, true);
+  const before = calls.length;
+
+  button.click();
+  await flush();
+
+  assert.equal(calls.length, before);
+  assert.deepEqual(titles(document), ["Water the plants", "Call the dentist"]);
+  assert.equal(remaining(document), "2 left");
+});
+
+test("clear case 8: a failed clear shows the detail and keeps every completed item", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+    ],
+    handler: async ({ url, method }) => {
+      if (method === "DELETE" && url === "/api/todos/done") {
+        return response(500, { detail: "Could not clear the done to-dos." });
+      }
+      return null;
+    },
+  });
+  const { document, calls } = await env.start();
+  const before = titles(document);
+
+  clearDoneButton(document).click();
+  await flush();
+
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
+  const error = document.querySelector(".error");
+  assert.equal(error.hidden, false);
+  assert.equal(error.textContent, "Could not clear the done to-dos.");
+  assert.deepEqual(titles(document), before);
+  assert.equal(remaining(document), "1 left");
+
+  const offline = setup({
+    todos: [
+      { id: 1, title: "Buy milk", done: true },
+      { id: 2, title: "Water the plants", done: false },
+    ],
+    handler: async ({ url, method }) => {
+      if (method === "DELETE" && url === "/api/todos/done") {
+        throw new Error("Network down");
+      }
+      return null;
+    },
+  });
+  const offlineStarted = await offline.start();
+  const offlineBefore = titles(offlineStarted.document);
+
+  clearDoneButton(offlineStarted.document).click();
+  await flush();
+
+  const offlineError = offlineStarted.document.querySelector(".error");
+  assert.equal(offlineError.hidden, false);
+  assert.equal(offlineError.textContent, "Network down");
+  assert.deepEqual(titles(offlineStarted.document), offlineBefore);
+});
+
+test("clear case 9: clearing closes an editor on a done item and keeps one on an active item", async () => {
+  const env = setup({
+    todos: [
+      { id: 1, title: "Done one", done: true },
+      { id: 2, title: "Open one", done: false },
+    ],
+  });
+  const { document } = await env.start();
+
+  openEditor(document, 1);
+  clearDoneButton(document).click();
+  await flush();
+
+  assert.equal(rowById(document, 1), null);
+  assert.equal(document.querySelector("form.edit"), null);
+  assert.deepEqual(titles(document), ["Open one"]);
+
+  const active = setup({
+    todos: [
+      { id: 1, title: "Done one", done: true },
+      { id: 2, title: "Open one", done: false },
+    ],
+  });
+  const activeStarted = await active.start();
+  const form = openEditor(activeStarted.document, 2);
+  form.querySelector('input[name="title"]').value = "Half typed";
+
+  clearDoneButton(activeStarted.document).click();
+  await flush();
+
+  const editor = rowById(activeStarted.document, 2).querySelector("form.edit");
+  assert.ok(editor, "an active item's editor should stay open");
+  assert.equal(editor.querySelector('input[name="title"]').value, "Open one");
+  assert.equal(rowById(activeStarted.document, 1), null);
 });

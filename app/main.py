@@ -143,6 +143,18 @@ def api_update(todo_id: int, body: TodoPatch) -> TodoOut:
     return TodoOut(id=todo.id, title=todo.title, done=todo.done)
 
 
+@app.delete("/api/todos/done", status_code=204)
+def api_clear_done() -> Response:
+    """Remove every completed to-do from the live list, answering 204. A list with
+    nothing done is left exactly as it was."""
+    for todo in [one for one in todos if one.done]:
+        try:
+            todos.remove(todo)
+        except ValueError:  # another request removed it between the scan and the removal
+            pass
+    return Response(status_code=204)
+
+
 @app.delete("/api/todos/{todo_id}", status_code=204)
 def api_delete(todo_id: int) -> Response:
     """Remove one to-do from the live list, answering 204. An unknown id is a JSON 404."""
