@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tasks 012: Filter to-dos by status</title>
-  <meta name="makase-status" content="Proposed">
+  <meta name="makase-status" content="Complete">
   <meta name="makase-type" content="code">
   <meta name="makase-id" content="012">
   <meta name="makase-depends-on" content="">
@@ -17,7 +17,7 @@
   <h1>Tasks 012: Filter to-dos by status</h1>
 
   <dl class="meta">
-    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
     <dt>Type</dt><dd>code</dd>
     <dt>Spec</dt><dd><a href="spec.html">Filter to-dos by status</a></dd>
   </dl>
@@ -25,6 +25,9 @@
 <table class="groups">
   <tr><td>A</td><td>Filter to-dos by status</td></tr>
 </table>
+
+<h2>What shipped</h2>
+<p>Added All, Active, and Done filter tabs in a bar under the header that filter the loaded to-dos client-side while the remaining count still reflects every open item and adding, toggling, editing, and deleting keep working under the selected filter.</p>
 
 <ol class="tasks">
   <li data-group="A">☑ <strong>A1. Add jsdom tests in <code>frontend/test/app.test.mjs</code> for cases 1&ndash;9: initial All selection and open count, Active and Done filtering, restoring All in insertion order, re-clicking the selected tab as a no-op, empty matches with the full open count, adding under Active and Done, toggling a row out of the active filter, and editing, deleting and switching tabs while an inline edit is open.</strong><br>✓ <code>uv run pytest tests/test_frontend.py -q</code>: 1 failed (the jsdom suite ran 35 tests: 26 passed, 9 failed). Filter cases 1&ndash;9 failed because no filter bar existed yet; the 26 existing cases passed.</li>
