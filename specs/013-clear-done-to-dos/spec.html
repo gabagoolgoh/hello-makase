@@ -1,0 +1,150 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 013: Clear done to-dos</title>
+  <meta name="makase-status" content="Approved">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="013">
+  <meta name="makase-walk" content="short">
+  <meta name="makase-walk-says" content="short: rated 3 of 5 by claude-haiku-5-5. The spec pins the endpoint, UI behaviour and placement, and the layout choice is already settled, but it spans backend, frontend, CSS and tests and depends on another item&#x27;s toolbar bar.">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="012">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="ask">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Spec 013: Clear done to-dos</h1>
+  <p class="subtitle">A Clear done button in the toolbar backed by a backend endpoint to remove all completed to-dos in one request.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge approved">Approved</span></dd>
+    <dt>Approved</dt><dd>2026-11-26</dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-26</dd>
+    <dt>Depends on</dt><dd>012</dd>
+    <dt>Merge</dt><dd>needs your approval</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <h2>Done when</h2>
+  <p>Done when clicking Clear done removes every completed to-do from the list and the in-memory store in one request. Active to-dos and the remaining count stay intact, and the API test suite passes.</p>
+
+  <h2>What</h2>
+  <p>
+    Add a <code>DELETE /api/todos/done</code> endpoint in <code>app/main.py</code> and a
+    <strong>Clear done</strong> button on the right side of the toolbar bar under
+    <code>.head</code> in <code>frontend/src/app.js</code>, following option a, &ldquo;Put the
+    filter tabs and Clear done in a bar under the header&rdquo; (building on the bar added by
+    <code>filter-todos-by-status</code>).
+  </p>
+  <p>
+    On the backend, <code>DELETE /api/todos/done</code> (registered before
+    <code>DELETE /api/todos/{todo_id}</code>) removes every item with <code>todo.done</code> from
+    the in-memory <code>todos</code> list in place, preserves all open items in insertion order,
+    leaves <code>next_id</code> advancing so cleared ids are never reused, and answers
+    <code>204 No Content</code> with an empty body. When no items are done or the list is empty,
+    it still answers <code>204</code> idempotently and changes nothing.
+  </p>
+  <p>
+    In the front end, clicking <strong>Clear done</strong> clears any error banner and sends one
+    <code>DELETE /api/todos/done</code> request. On success, all items with <code>todo.done</code>
+    are removed from the client&rsquo;s <code>todos</code> array, <code>editingId</code> is cleared
+    if it pointed to a completed item (and preserved if it pointed to an active item), and
+    <code>render()</code> redraws the list under the current filter tab with <code>.remaining</code>
+    unchanged. When zero to-dos are done, the <strong>Clear done</strong> button is disabled so
+    clicking it sends no request. If the request fails, <code>.error</code> displays the server
+    <code>detail</code> or a fallback message and no local items are removed.
+  </p>
+  <p>
+    This item does <strong>not</strong> cover confirmation dialogs, undo, or persisting to-dos
+    across server restarts.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>app/main.py</code> &mdash; add <code>DELETE /api/todos/done</code> (<code>api_clear_done</code>) before <code>DELETE /api/todos/{todo_id}</code>. Confirmed by reading.</li>
+    <li><code>tests/test_api.py</code> &mdash; add API tests for <code>DELETE /api/todos/done</code>, idempotency, active/remaining preservation, and non-reuse of cleared ids. Confirmed by reading.</li>
+    <li><code>frontend/src/app.js</code> &mdash; <code>createApp</code>: render the <strong>Clear done</strong> button in the toolbar bar under <code>.head</code>, update its disabled state in <code>render()</code>, and wire its click handler to <code>DELETE /api/todos/done</code>. Confirmed by reading (toolbar bar itself is added by <code>filter-todos-by-status</code>).</li>
+    <li><code>frontend/src/style.css</code> &mdash; styles for the <strong>Clear done</strong> button on the right of the toolbar bar per option a, &ldquo;Put the filter tabs and Clear done in a bar under the header&rdquo;. Confirmed by reading.</li>
+    <li><code>frontend/test/app.test.mjs</code> &mdash; jsdom tests for clicking <strong>Clear done</strong>, disabled state, active filters, edit preservation, and error handling. Confirmed by reading.</li>
+    <li>Must not change: existing <code>GET /api/todos</code>, <code>POST /api/todos</code>, <code>PATCH /api/todos/{todo_id}</code>, and <code>DELETE /api/todos/{todo_id}</code> contracts, and <code>STARTERS</code> / <code>reset()</code> in <code>app/main.py</code>. Confirmed by reading.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li><code>DELETE /api/todos/done</code> when completed to-dos exist removes every <code>done: true</code> item from <code>main.todos</code>, returns <code>204</code> with an empty body, preserves all <code>done: false</code> items in order, and keeps <code>remaining</code> unchanged.</li>
+    <li><code>DELETE /api/todos/done</code> when all to-dos are open or <code>main.todos</code> is empty returns <code>204</code> with an empty body and leaves <code>main.todos</code> and <code>remaining</code> unchanged.</li>
+    <li>Calling <code>DELETE /api/todos/done</code> twice in a row is idempotent: the second call returns <code>204</code> and changes nothing.</li>
+    <li>Adding a new to-do after <code>DELETE /api/todos/done</code> never reuses an id from a cleared to-do.</li>
+    <li>In the UI, clicking <strong>Clear done</strong> when completed items exist sends one <code>DELETE /api/todos/done</code> request, removes all done rows from the DOM, and keeps active rows, <code>.remaining</code>, and the active filter tab intact.</li>
+    <li>Clicking <strong>Clear done</strong> under the <strong>Done</strong> tab empties the visible list while keeping active items intact when switching to <strong>All</strong> or <strong>Active</strong>; clicking it under <strong>Active</strong> removes hidden done items without altering the visible active rows.</li>
+    <li>When no to-dos are done, the <strong>Clear done</strong> button is disabled and clicking it sends no network request.</li>
+    <li>When <code>DELETE /api/todos/done</code> fails with a non-OK response or network error, <code>.error</code> shows the failure message and all completed items remain in the client list.</li>
+    <li>If a completed item is in inline edit mode when <strong>Clear done</strong> succeeds, <code>editingId</code> is cleared; if an active item is in inline edit mode, its editor stays open.</li>
+    <li>By-hand check for the merge gate: open the built app in a browser and confirm <strong>Clear done</strong> sits on the right side of the toolbar bar under the header per option a, &ldquo;Put the filter tabs and Clear done in a bar under the header&rdquo;.</li>
+  </ol>
+
+  <h2 id="look">The picked look: Put the filter tabs and Clear done in a bar under the header</h2>
+  <p>Picked in the brainstorm: option a, <strong>Put the filter tabs and Clear done in a bar under the header</strong>, of question 1, “Where should the filter tabs and Clear done sit in the card?”. makase placed it exactly as it was drawn; its source is <a href="look.html"><code>look.html</code></a>, beside this file. The build matches its layout, hierarchy, placement and token values, not its pixels, and its text is placeholder.</p>
+  <iframe class="look-frame" src="look.html" sandbox="" width="640" height="200" title="The picked look: Put the filter tabs and Clear done in a bar under the header"></iframe>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Clear done in the bar under the header</strong>: place <strong>Clear done</strong> on the right of the toolbar bar under <code>.head</code> (option a, &ldquo;Put the filter tabs and Clear done in a bar under the header&rdquo;) &mdash; keeps it aligned with the filter tabs in one fixed spot; rejected placing the bar below the list (option b) so controls do not shift as the list grows.</li>
+    <li><strong>Single backend endpoint over N per-item deletes</strong>: add a dedicated endpoint in <code>app/main.py</code> rather than looping <code>DELETE /api/todos/{id}</code> from the client &mdash; removes all completed items in one request as specified.</li>
+    <li><strong>Rest on <code>filter-todos-by-status</code></strong>: depend on <code>filter-todos-by-status</code> so the toolbar bar under the header lands first.</li>
+    <li><strong><code>DELETE /api/todos/done</code> returning <code>204 No Content</code></strong> (makase chose this): use <code>DELETE /api/todos/done</code> with an empty <code>204</code> response rather than <code>POST /api/todos/clear-done</code> or returning <code>TodoListOut</code> &mdash; matches <code>DELETE /api/todos/{todo_id}</code> in <code>app/main.py</code>.</li>
+    <li><strong>Disable Clear done when zero items are done</strong> (makase chose this): set <code>disabled</code> on <strong>Clear done</strong> when no to-do is done &mdash; avoids no-op requests from the UI while keeping the backend endpoint idempotent.</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>
