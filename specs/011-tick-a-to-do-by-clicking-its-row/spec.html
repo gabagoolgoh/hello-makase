@@ -1,0 +1,171 @@
+<!doctype html>
+<!--
+  makase spec template. Copy to specs/NNN-slug/spec.html and fill in.
+  The <meta name="makase-*"> tags are machine-readable: the orchestrator greps
+  them to build the queue. Keep them accurate, keep the visible badge in sync
+  with the meta status. Five of them are optional pins, documented inline
+  below — leave a pin's tag out entirely when you have nothing to pin.
+  Three of the five share one rule: makase may write it, only a human clears
+  it, and the item is not claimable while it is present.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spec 011: Tick a to-do by clicking its row</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="011">
+  <!-- Optional. Only for pinned dependencies you set by hand: a comma-separated
+       list of item ids this one cannot start before. The analyzer derives edges
+       on its own and may add to this, but never overwrites what is pinned here.
+       Leave the tag out entirely when you have nothing to pin. -->
+  <meta name="makase-depends-on" content="009">
+  <!-- Optional. "auto" pre-approves this item for merge without the human gate;
+       absent or "ask" means the merge waits for you (ADR 003). Set it in the
+       same act as approving the spec — a standing permission to skip a gate is
+       a decision, so it belongs in git rather than in a settings screen. -->
+  <meta name="makase-merge" content="ask">
+  <!-- Written by makase, cleared by a human. Names the vision amendment whose
+       change may have invalidated this spec — the anchor id of an <dd> in the
+       vision's amendment log, e.g. "am-2026-08-28-chat-rule". While it is
+       present the item is NOT claimable: re-spec it or decide it still stands,
+       then delete the tag and its visible note. -->
+  <meta name="makase-vision-check" content="">
+  <!-- Written by makase, cleared by a human. Names an item this one depended on
+       that has since been Abandoned (ADR 006), e.g. "007". While it is present
+       the item is NOT claimable: abandon this item too, or decide it stands
+       without that dependency, then delete the tag and its visible note.
+       Abandoning never cascades — this pin is what makes a human look. -->
+  <meta name="makase-blocked-by-abandoned" content="">
+  <!-- Optional, research specs only: the makase-reading pin says how far the
+       research reads. Its content is one of three values: repo (the repository
+       only), light (one reader and a few pages outside) or web (the full
+       fan-out of subagents). Absent means web, and the pin is ignored on every
+       other type. A brainstorm landing stamps it, with a visible Reading row
+       after Type; a hand-written research spec adds the tag after makase-id
+       itself. The tag is deliberately not spelled out here, because a
+       commented-out tag would be found by the tools that edit the head. -->
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<!--
+  Everything visual comes from assets/spec.css — never inline CSS here.
+  Class vocabulary it provides, all optional beyond .doc / .meta / .badge:
+
+    .subtitle    serif italic standfirst under the h1
+    .eyebrow     small mono uppercase label; sits above a heading or opens a card
+    .tldr        boxed lead summary — the "read this if nothing else" block
+    .note        accent callout        .warn-box  caution callout
+    .verdict     bordered conclusion box, heavier than .note
+    blockquote   serif pull-quote; put attribution in a <cite>
+    .cards/.card responsive card grid (h4 titles)
+    .scroll-x    wrapper for any wide table
+    .chip        inline status pill for table cells (.ok / .warn / .stop)
+    ol.decisions the decision list
+    figure.chart inline SVG chart: .chart-title, .chart-sub, .chart-legend,
+                 .chart-scroll, a <details> table view, and the --viz-* colour
+                 roles (validated for colour-vision safety — see spec.css)
+    .mock-*      board/card UI mockups — UI workshop docs only, never drawn in
+                 a spec's prose; full vocabulary in spec.css's "UI mockups" block
+    .look-frame  one of the two pictures a spec may carry: the look its
+                 brainstorm picked, which makase places in its own "The picked
+                 look" section as a frame onto look.html beside the spec.
+    .diagram-frame  the other: the diagram its brainstorm drew of the
+                 architecture, which makase places in its own "The drawn
+                 diagram" section as a frame onto diagram.html beside the
+                 spec. makase places both; neither is ever written by hand,
+                 and neither is ever a picture nobody saw.
+-->
+<main class="doc">
+
+  <h1>Spec 011: Tick a to-do by clicking its row</h1>
+  <p class="subtitle">A click anywhere on a to-do's row ticks or unticks it, the same as clicking its checkbox.</p>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Created</dt><dd>2026-11-26</dd>
+    <dt>Depends on</dt><dd>009</dd>
+    <dt>Merge</dt><dd>needs your approval</dd>
+    <!-- Add only while a makase-vision-check pin is set, and delete both together.
+         This is the visible half of the pin: status lives in two places and they
+         must agree. -->
+    <!-- <dt>Vision check</dt><dd><span class="badge blocked">Blocked</span> — written against the vision before <a href="../000-vision.html#am-YYYY-MM-DD-slug">this amendment</a>; not claimable until someone confirms it still stands</dd> -->
+    <!-- Same rule for the abandonment pin — add it only while makase-blocked-by-abandoned is set, and delete both together.
+    <dt>Blocked by</dt><dd><span class="badge blocked">Blocked</span> — depended on item NNN, which was <span class="badge abandoned">Abandoned</span>; not claimable until someone abandons this too or decides it stands without it</dd> -->
+  </dl>
+
+  <!-- Required. One paragraph, in the second person, describing what you will be
+       able to do that you cannot do now. The item page quotes this verbatim as the
+       item's claim (reference 008), so write it as a sentence someone reads on its
+       own — not as a checklist and not as a restatement of the title. -->
+  <h2>Done when</h2>
+  <p>You can tick an open to-do, or untick a done one, by clicking anywhere on its row, including its title and the empty space beside it, the same as clicking its checkbox. Clicking Edit, Delete, or anything in a row you're editing doesn't change whether it's done.</p>
+
+  <h2>What</h2>
+  <p>
+    Today only the small checkbox button in each row of the built front end
+    (<code>frontend/src/app.js</code>, item 009) ticks or unticks a to-do. This item makes
+    the whole <code>&lt;li class="todo"&gt;</code> row a click target for the same action:
+    a click anywhere on a normal (non-editing) row sends the same
+    <code>PATCH /api/todos/{id}</code> with <code>{"done": !todo.done}</code> that the
+    checkbox sends, and the row redraws from the response exactly as it does after a
+    checkbox click, struck through or not, with the remaining count recomputed.
+  </p>
+  <p>
+    The row gets one click listener in <code>renderRow</code>. Clicks that start on the
+    checkbox, the Edit button or the Delete button are left to those controls and do not
+    reach the row's toggle, so a checkbox click still sends exactly one request and Edit and
+    Delete keep their current behaviour. A row drawn in edit mode (items 006 and 010) gets no
+    row toggle at all. A click that ends with text selected inside the row (a drag to select
+    part of a title) changes nothing. The row shows a pointer cursor; the checkbox, Edit and
+    Delete look as they do now. The keyboard path is unchanged: the checkbox stays the only
+    focusable toggle, and the row gains no <code>tabindex</code> or <code>role</code>.
+  </p>
+  <p>
+    The API, the server, the checkbox markup (<code>button.toggle</code> with
+    <code>role="checkbox"</code>, <code>aria-checked</code> and the title as
+    <code>aria-label</code>), the strike-through, error handling and the remaining-count
+    wording are untouched.
+  </p>
+
+  <h3>Touchpoints</h3>
+  <ul>
+    <li><code>frontend/src/app.js</code> — <code>createApp({document, fetch})</code>; the row drawn by <code>renderRow(todo)</code> gains the click target, reusing the existing toggle request. No new export, no module-level document access.</li>
+    <li><code>frontend/src/style.css</code> — the <code>li</code> rule (line 61, read) gains <code>cursor: pointer</code> for non-editing rows; <code>.toggle</code>, <code>.edit</code>, <code>.delete</code>, <code>li.done .title</code> rules unchanged, and no rule cancels <code>text-decoration: line-through</code>.</li>
+    <li><code>frontend/test/app.test.mjs</code> — new jsdom cases beside cases 4–11, using the existing fake document and fake fetch; run through <code>tests/test_frontend.py</code>, whose test name mentions cases 4 to 11 and may be broadened (not confirmed whether it must be).</li>
+    <li>Must not change: <code>app/main.py</code> and every <code>/api/todos</code> route; <code>tests/test_api.py</code>, <code>tests/test_main.py</code>; the checkbox's attributes; Edit, Delete, Save, Cancel and Escape (item 010) behaviour.</li>
+  </ul>
+
+  <h3>Cases</h3>
+  <ol>
+    <li>Clicking the title text of an open to-do sends one <code>PATCH</code> with <code>{"done": true}</code>; the row redraws struck through and the remaining count drops by one.</li>
+    <li>Clicking the empty space of a done to-do's row (the <code>li</code> itself, not a child) sends one <code>PATCH</code> with <code>{"done": false}</code>; the row redraws without strike-through and the count rises by one.</li>
+    <li>Clicking the checkbox sends exactly one <code>PATCH</code>, not two.</li>
+    <li>Clicking Edit opens the editor and sends no <code>PATCH</code>.</li>
+    <li>Clicking Delete sends only the <code>DELETE</code>, with no <code>PATCH</code>.</li>
+    <li>While a row is in edit mode, clicks on its input, Save, Cancel or the row's empty space send no <code>PATCH</code>; Save and Cancel behave as before.</li>
+    <li>A click on the title that ends with a non-empty text selection inside the row sends no request.</li>
+    <li>Two clicks on the same drawn row before it redraws both send the same <code>done</code> value, so the to-do ends up ticked, not flipped back.</li>
+    <li>A failed row-click request shows the <code>.error</code> alert with the JSON <code>detail</code> and leaves the row and count as they were.</li>
+    <li>A title containing HTML still renders as literal text in a row that was ticked by a row click.</li>
+  </ol>
+
+  <h2>Decisions</h2>
+  <ol class="decisions">
+    <li><strong>Whole row, not just the title</strong>: the operator asked for clicking "the line". A <code>&lt;label&gt;</code> around the title was rejected because it covers only the text, not the row's empty space.</li>
+    <li><strong>Same request as the checkbox</strong>: the row reuses <code>PATCH {"done": !todo.done}</code> with no new route or toggle endpoint, so a repeated click on a stale row stays idempotent as items 005, 008 and 009 require (makase chose this).</li>
+    <li><strong>Controls keep their own clicks</strong>: checkbox, Edit and Delete clicks never also trigger the row, because a checkbox click bubbling into the row would tick and immediately untick (makase chose this).</li>
+    <li><strong>No toggle while editing</strong>: a row being renamed never ticks, matching item 006's rule that a to-do can't be ticked or deleted halfway through renaming (makase chose this).</li>
+    <li><strong>Keyboard stays on the checkbox</strong>: the row gets no <code>tabindex</code> or <code>role</code>, so assistive tech and Tab still find one labelled toggle per to-do; making the row a second focus stop for the same action was rejected (makase chose this).</li>
+    <li><strong>Selecting text doesn't tick</strong>: a click that ends with text selected changes nothing, so copying part of a title doesn't flip it (makase chose this; the operator did not object).</li>
+    <li><strong>Pointer cursor on the row</strong>: the only visual change, so the row reads as clickable without restyling the card layout of item 007 (makase chose this).</li>
+  </ol>
+
+</main>
+<footer class="doc-footer">
+  makase · spec-driven development · <a href="../000-vision.html">vision</a>
+</footer>
+</body>
+</html>
