@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Tasks 013: Clear done to-dos</title>
-  <meta name="makase-status" content="Proposed">
+  <meta name="makase-status" content="Complete">
   <meta name="makase-type" content="code">
   <meta name="makase-id" content="013">
   <meta name="makase-depends-on" content="012">
@@ -17,10 +17,13 @@
   <h1>Tasks 013: Clear done to-dos</h1>
 
   <dl class="meta">
-    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Status</dt><dd><span class="badge complete">Complete</span></dd>
     <dt>Type</dt><dd>code</dd>
     <dt>Spec</dt><dd><a href="spec.html">Clear done to-dos</a></dd>
   </dl>
+
+<h2>What shipped</h2>
+  <p>Adds <code>DELETE /api/todos/done</code> to remove every completed to-do in one request and a Clear done button on the right of the toolbar that disables itself when nothing is done and keeps active to-dos, the remaining count and the selected filter intact.</p>
 
 <table class="groups">
   <tr><td>A</td><td>Clear done to-dos</td></tr>
