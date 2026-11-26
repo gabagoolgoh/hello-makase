@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 010: Cancel inline edit with Escape</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="010">
+  <meta name="makase-depends-on" content="006, 009">
+  <meta name="makase-merge" content="ask">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 010: Cancel inline edit with Escape</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Spec</dt><dd><a href="spec.html">Cancel inline edit with Escape</a></dd>
+  </dl>
+
+<table class="groups">
+  <tr><td>A</td><td>Cancel inline edit with Escape</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☐ <strong>A1. Add failing jsdom tests in <code>frontend/test/app.test.mjs</code> for cases 1&ndash;8: changed, blank and unchanged edits cancelled by <code>Escape</code> close the editor with the original title and send no <code>PATCH</code>; a visible save error is cleared; an IME composition keeps the editor open; other keys still type or submit; <code>Escape</code> with no editor does nothing; and reopening after cancellation pre-fills the original title.</strong></li>
+  <li data-group="A">☐ <strong>A2. Add a <code>keydown</code> handler to the inline edit input in <code>frontend/src/app.js</code> that on <code>Escape</code> while not composing clears <code>editingId</code> and the error banner and re-renders exactly as Cancel does, without a request.</strong></li>
+  <li data-group="A">☐ <strong>A3. Run the project test suite, fix any failures, and confirm every case passes with the new cancellation behaviour.</strong></li>
+</ol>
+
+</main>
+</body>
+</html>
