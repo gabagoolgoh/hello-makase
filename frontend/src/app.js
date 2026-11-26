@@ -134,6 +134,12 @@ export function createApp({
     return row;
   }
 
+  function cancelEdit() {
+    editingId = null;
+    clearError();
+    render();
+  }
+
   function renderEditor(todo) {
     const form = doc.createElement("form");
     form.className = "edit";
@@ -143,6 +149,11 @@ export function createApp({
     input.name = "title";
     input.value = todo.title;
     input.setAttribute("aria-label", "Edit title");
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !event.isComposing) {
+        cancelEdit();
+      }
+    });
 
     const save = doc.createElement("button");
     save.type = "submit";
@@ -152,11 +163,7 @@ export function createApp({
     cancel.type = "button";
     cancel.className = "cancel";
     cancel.textContent = "Cancel";
-    cancel.addEventListener("click", () => {
-      editingId = null;
-      clearError();
-      render();
-    });
+    cancel.addEventListener("click", cancelEdit);
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
