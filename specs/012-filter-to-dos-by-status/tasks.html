@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tasks 012: Filter to-dos by status</title>
+  <meta name="makase-status" content="Proposed">
+  <meta name="makase-type" content="code">
+  <meta name="makase-id" content="012">
+  <meta name="makase-depends-on" content="">
+  <meta name="makase-merge" content="ask">
+  <link rel="stylesheet" href="../assets/spec.css">
+</head>
+<body>
+<main class="doc">
+
+  <h1>Tasks 012: Filter to-dos by status</h1>
+
+  <dl class="meta">
+    <dt>Status</dt><dd><span class="badge proposed">Proposed</span></dd>
+    <dt>Type</dt><dd>code</dd>
+    <dt>Spec</dt><dd><a href="spec.html">Filter to-dos by status</a></dd>
+  </dl>
+
+<table class="groups">
+  <tr><td>A</td><td>Filter to-dos by status</td></tr>
+</table>
+
+<ol class="tasks">
+  <li data-group="A">☐ <strong>A1. Add jsdom tests in <code>frontend/test/app.test.mjs</code> for cases 1&ndash;9: initial All selection and open count, Active and Done filtering, restoring All in insertion order, re-clicking the selected tab as a no-op, empty matches with the full open count, adding under Active and Done, toggling a row out of the active filter, and editing, deleting and switching tabs while an inline edit is open.</strong></li>
+  <li data-group="A">☐ <strong>A2. Add filter state and a filter bar under <code>.head</code> in <code>createApp</code> in <code>frontend/src/app.js</code> with All, Active and Done <code>&lt;button type="button"&gt;</code> tabs carrying <code>aria-pressed</code> and an active class, filter <code>todos</code> in <code>render()</code> while counting all open items, and clear <code>editingId</code> on tab switch.</strong></li>
+  <li data-group="A">☐ <strong>A3. Add the filter bar and tab button styles to <code>frontend/src/style.css</code>, following the picked look&rsquo;s bar under the header with quiet inactive tabs and a highlighted selected tab.</strong></li>
+  <li data-group="A">☐ <strong>A4. Run <code>uv run pytest</code> and fix any failures until the new filter cases and the existing API, server and front-end tests all pass.</strong></li>
+</ol>
+
+</main>
+</body>
+</html>
