@@ -106,6 +106,22 @@ function submit(form) {
   );
 }
 
+function pressKey(input, key, init = {}) {
+  input.dispatchEvent(
+    new input.ownerDocument.defaultView.KeyboardEvent("keydown", {
+      key,
+      bubbles: true,
+      cancelable: true,
+      ...init,
+    }),
+  );
+}
+
+function openEditor(document, id) {
+  rowById(document, id).querySelector(".edit").click();
+  return rowById(document, id).querySelector("form.edit");
+}
+
 test("case 4: startup lists every returned todo and the remaining count", async () => {
   const open = setup({
     todos: [
@@ -303,4 +319,157 @@ test("case 11: an API error shows a message and keeps the rest of the list", asy
 
   assert.equal(document.querySelector(".error").hidden, false);
   assert.deepEqual(titles(document), before, "a failed add should not change the list");
+});
+
+test("case 1: Escape closes the editor, keeps the original title, and sends no PATCH", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+  input.value = "Oat milk";
+
+  pressKey(input, "Escape");
+  await flush();
+
+  assert.equal(document.querySelector("form.edit"), null, "Escape should close the editor");
+  assert.equal(rowById(document, 1).querySelector(".title").textContent, "Buy milk");
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("case 2: Escape closes the editor when the input is empty or whitespace", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+
+  for (const value of ["", "   "]) {
+    const form = openEditor(document, 1);
+    const input = form.querySelector('input[name="title"]');
+    input.value = value;
+    pressKey(input, "Escape");
+    await flush();
+
+    assert.equal(
+      document.querySelector("form.edit"),
+      null,
+      `Escape should close the editor for ${JSON.stringify(value)}`,
+    );
+    assert.equal(rowById(document, 1).querySelector(".title").textContent, "Buy milk");
+  }
+
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("case 3: Escape closes an unchanged editor and renders the normal row", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+
+  pressKey(form.querySelector('input[name="title"]'), "Escape");
+  await flush();
+
+  const row = rowById(document, 1);
+  assert.equal(row.querySelector("form.edit"), null);
+  assert.ok(row.querySelector(".edit"), "the Edit button should be back");
+  assert.ok(row.querySelector(".toggle"), "the done toggle should be back");
+  assert.ok(row.querySelector(".delete"), "the Delete button should be back");
+  assert.equal(row.querySelector(".title").textContent, "Buy milk");
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("case 4: Escape after a failed save closes the editor and clears the error", async () => {
+  const env = setup({
+    todos: [{ id: 1, title: "Buy milk", done: false }],
+    handler: async ({ method }) => {
+      if (method === "PATCH") return response(500, { detail: "Could not save the title." });
+      return null;
+    },
+  });
+  const { document, state } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+  input.value = "Oat milk";
+  submit(form);
+  await flush();
+
+  const error = document.querySelector(".error");
+  assert.equal(error.hidden, false, "the failed save should show an error");
+  assert.equal(error.textContent, "Could not save the title.");
+
+  pressKey(input, "Escape");
+  await flush();
+
+  assert.equal(document.querySelector("form.edit"), null, "Escape should close the editor");
+  assert.equal(rowById(document, 1).querySelector(".title").textContent, "Buy milk");
+  assert.equal(state[0].title, "Buy milk", "the failed save should not change the stored title");
+  assert.equal(error.hidden, true, "Escape should clear the error");
+  assert.equal(error.textContent, "");
+});
+
+test("case 5: Escape during IME composition leaves the editor open", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+  input.value = "Oat milk";
+
+  pressKey(input, "Escape", { isComposing: true });
+  await flush();
+
+  assert.equal(document.querySelector("form.edit"), form, "composition Escape should keep the editor open");
+  assert.equal(rowById(document, 1).querySelector('input[name="title"]').value, "Oat milk");
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+});
+
+test("case 6: other keys do not cancel the edit and normal submission still works", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+
+  pressKey(input, "a");
+  pressKey(input, "Enter");
+  await flush();
+
+  assert.equal(document.querySelector("form.edit"), form, "other keys should not cancel the edit");
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+
+  input.value = "Oat milk";
+  submit(form);
+  await flush();
+
+  const patch = calls.find((call) => call.method === "PATCH");
+  assert.equal(patch.url, "/api/todos/1");
+  assert.deepEqual(patch.body, { title: "Oat milk" });
+  assert.equal(document.querySelector("form.edit"), null);
+});
+
+test("case 7: Escape with no inline editor does nothing", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const before = titles(document);
+  const input = document.querySelector('form.add input[name="title"]');
+  input.focus();
+
+  pressKey(input, "Escape");
+  await flush();
+
+  assert.deepEqual(titles(document), before);
+  assert.equal(document.querySelector("form.edit"), null);
+  assert.equal(document.querySelector(".error").hidden, true);
+  assert.deepEqual(calls.map((call) => call.method), ["GET"]);
+});
+
+test("case 8: reopening Edit after Escape pre-fills the original title", async () => {
+  const env = setup({ todos: [{ id: 1, title: "Buy milk", done: false }] });
+  const { document, calls } = await env.start();
+  const form = openEditor(document, 1);
+  const input = form.querySelector('input[name="title"]');
+  input.value = "Discarded change";
+
+  pressKey(input, "Escape");
+  await flush();
+  assert.equal(document.querySelector("form.edit"), null);
+
+  const reopened = openEditor(document, 1);
+  assert.equal(reopened.querySelector('input[name="title"]').value, "Buy milk");
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
 });
